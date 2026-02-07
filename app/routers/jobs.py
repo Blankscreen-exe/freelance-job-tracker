@@ -601,6 +601,25 @@ async def create_allocation(
     
     return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)
 
+@router.get("/allocations/{alloc_id}/edit", response_class=HTMLResponse)
+async def edit_allocation_form(request: Request, alloc_id: int, db: Session = Depends(get_db_session)):
+    allocation = db.query(JobAllocation).filter(JobAllocation.id == alloc_id).first()
+    if not allocation:
+        raise HTTPException(status_code=404, detail="Allocation not found")
+    
+    job = allocation.job
+    if job.is_finalized:
+        raise HTTPException(status_code=400, detail="Cannot edit allocations in finalized job")
+    
+    workers = db.query(Worker).filter(Worker.is_archived == False).all()
+    
+    return templates.TemplateResponse("allocations/form.html", {
+        "request": request,
+        "allocation": allocation,
+        "job": job,
+        "workers": workers
+    })
+
 @router.post("/allocations/{alloc_id}/edit")
 async def update_allocation(
     alloc_id: int,

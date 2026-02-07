@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="mb-4">Edit Allocation</h1>
+
+<form method="POST" action="/allocations/{{ allocation.id }}/edit">
+    <div class="mb-3">
+        <label for="worker_id" class="form-label">Worker (leave empty for admin/you)</label>
+        <select class="form-select" id="worker_id" name="worker_id">
+            <option value="None" {% if not allocation.worker_id %}selected{% endif %}>None (Admin/You)</option>
+            {% for worker in workers %}
+            <option value="{{ worker.id }}" {% if allocation.worker_id == worker.id %}selected{% endif %}>
+                {{ worker.name }} ({{ worker.worker_code }})
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-3">
+        <label for="label" class="form-label">Label *</label>
+        <input type="text" class="form-control" id="label" name="label" value="{{ allocation.label }}" required>
+    </div>
+    <div class="mb-3">
+        <label for="role" class="form-label">Role</label>
+        <input type="text" class="form-control" id="role" name="role" value="{{ allocation.role or '' }}">
+    </div>
+    <div class="mb-3">
+        <label for="share_type" class="form-label">Share Type *</label>
+        <select class="form-select" id="share_type" name="share_type" required>
+            <option value="percent" {% if allocation.share_type.value == "percent" %}selected{% endif %}>Percent</option>
+            <option value="fixed_amount" {% if allocation.share_type.value == "fixed_amount" %}selected{% endif %}>Fixed Amount</option>
+        </select>
+    </div>
+    <div class="mb-3">
+        <label for="share_value" class="form-label">Share Value *</label>
+        <input type="number" step="0.01" class="form-control" id="share_value" name="share_value" value="{{ allocation.share_value }}" required>
+        <small class="form-text text-muted">For percent, enter as decimal (e.g., 0.5 for 50%)</small>
+    </div>
+    <div class="mb-3">
+        <label for="notes" class="form-label">Notes</label>
+        <textarea class="form-control" id="notes" name="notes" rows="2">{{ allocation.notes or '' }}</textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a href="/jobs/{{ job.id }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}
