@@ -10,6 +10,12 @@ def generate_payments_from_receipt(receipt: Receipt, job: Job, db: Session) -> L
     """
     Generate payment entries for selected worker allocations when a receipt is added.
     Returns list of created Payment records.
+    
+    Important: Payment records are independent of JobAllocation records. They reference
+    worker_id and job_id directly, not allocation_id. This means:
+    - Payments remain in the database even if allocations are deleted
+    - Payment history is preserved when workers are removed and re-added to jobs
+    - Payments can be viewed regardless of current allocation status
     """
     # Check if using custom allocations
     if receipt.use_custom_allocations and receipt.custom_allocations:

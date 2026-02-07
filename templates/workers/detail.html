@@ -86,7 +86,8 @@
 {% endif %}
 
 <h3 class="mt-4">Payments</h3>
-{% if payments %}
+{% if payments_with_allocation %}
+<h5 class="mt-3">Current Allocations</h5>
 <div class="table-responsive">
     <table class="table data-table">
         <thead>
@@ -99,7 +100,7 @@
             </tr>
         </thead>
         <tbody>
-            {% for payment in payments %}
+            {% for payment in payments_with_allocation %}
             <tr>
                 <td>{{ payment.payment_code }}</td>
                 <td>{{ payment.paid_date }}</td>
@@ -117,7 +118,44 @@
         </tbody>
     </table>
 </div>
-{% else %}
+{% endif %}
+
+{% if payments_without_allocation %}
+<h5 class="mt-3">Historical Payments (No Current Allocation)</h5>
+<div class="table-responsive">
+    <table class="table data-table">
+        <thead>
+            <tr>
+                <th>Payment Code</th>
+                <th>Date</th>
+                <th>Amount</th>
+                <th>Job</th>
+                <th>Method</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for payment in payments_without_allocation %}
+            <tr>
+                <td>{{ payment.payment_code }}</td>
+                <td>{{ payment.paid_date }}</td>
+                <td>${{ "%.2f"|format(payment.amount_paid) }}</td>
+                <td>
+                    {% if payment.job %}
+                    <a href="/jobs/{{ payment.job.id }}">{{ payment.job.job_code }}</a>
+                    <span class="badge bg-secondary ms-1" title="Worker no longer allocated to this job">Inactive</span>
+                    {% else %}
+                    - <span class="badge bg-secondary ms-1" title="No job association">No Job</span>
+                    {% endif %}
+                </td>
+                <td>{{ payment.method or "-" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if not payments %}
 <p class="text-muted">No payments found.</p>
 {% endif %}
 {% endblock %}

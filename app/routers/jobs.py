@@ -143,6 +143,10 @@ async def job_detail(request: Request, job_id: int, db: Session = Depends(get_db
     allocations = db.query(JobAllocation).filter(JobAllocation.job_id == job_id).all()
     payments = db.query(Payment).filter(Payment.job_id == job_id).all()
     
+    # Get set of currently allocated worker IDs for visual indicators
+    # Payments are independent of allocations and remain visible even when workers are removed
+    current_worker_ids = {a.worker_id for a in allocations if a.worker_id}
+    
     # Get calculations
     if job.is_finalized and job.snapshot:
         # Use snapshot
@@ -206,6 +210,7 @@ async def job_detail(request: Request, job_id: int, db: Session = Depends(get_db
         "settings_rules": rules,
         "workers": workers,  # Keep original for template iteration
         "workers_json": workers_dict,  # Use this for JSON serialization
+        "current_worker_ids": current_worker_ids,  # For showing inactive worker indicators
         "connects_used": connects_used,
         "connect_cost_per_unit": connect_cost_per_unit
     })
@@ -647,6 +652,13 @@ async def update_allocation(
 
 @router.post("/allocations/{alloc_id}/delete")
 async def delete_allocation(alloc_id: int, db: Session = Depends(get_db_session)):
+    """
+    Delete a job allocation.
+    
+    Note: Payments are independent of allocations and will remain in the database
+    even after an allocation is deleted. This preserves payment history and allows
+    workers to be reallocated without losing historical payment records.
+    """
     allocation = db.query(JobAllocation).filter(JobAllocation.id == alloc_id).first()
     if not allocation:
         raise HTTPException(status_code=404, detail="Allocation not found")

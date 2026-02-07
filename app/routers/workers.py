@@ -147,8 +147,10 @@ async def worker_detail(request: Request, worker_id: int, db: Session = Depends(
     
     # Get allocations grouped by job
     allocations_by_job = {}
+    current_job_ids = set()
     for alloc in worker.allocations:
         if alloc.job.status != "archived":
+            current_job_ids.add(alloc.job_id)
             if alloc.job_id not in allocations_by_job:
                 allocations_by_job[alloc.job_id] = {
                     "job": alloc.job,
@@ -159,12 +161,23 @@ async def worker_detail(request: Request, worker_id: int, db: Session = Depends(
     # Get payments
     payments = sorted(worker.payments, key=lambda p: p.paid_date, reverse=True)
     
+    # Separate payments into current allocations and historical (no current allocation)
+    payments_with_allocation = []
+    payments_without_allocation = []
+    for payment in payments:
+        if payment.job_id and payment.job_id in current_job_ids:
+            payments_with_allocation.append(payment)
+        else:
+            payments_without_allocation.append(payment)
+    
     return templates.TemplateResponse("workers/detail.html", {
         "request": request,
         "worker": worker,
         "totals": totals,
         "allocations_by_job": allocations_by_job.values(),
-        "payments": payments
+        "payments": payments,  # All payments for backward compatibility
+        "payments_with_allocation": payments_with_allocation,
+        "payments_without_allocation": payments_without_allocation
     })
 
 @router.get("/workers/{worker_id}/edit", response_class=HTMLResponse)

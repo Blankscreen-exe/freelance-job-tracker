@@ -314,7 +314,12 @@
             {% for payment in payments %}
             <tr>
                 <td>{{ payment.payment_code }}</td>
-                <td><a href="/workers/{{ payment.worker.id }}">{{ payment.worker.name }}</a></td>
+                <td>
+                    <a href="/workers/{{ payment.worker.id }}">{{ payment.worker.name }}</a>
+                    {% if payment.worker.id not in current_worker_ids %}
+                    <span class="badge bg-secondary ms-1" title="Worker no longer allocated to this job">Inactive</span>
+                    {% endif %}
+                </td>
                 <td>{{ payment.paid_date }}</td>
                 <td>${{ "%.2f"|format(payment.amount_paid) }}</td>
                 <td>{{ payment.method or "-" }}</td>
