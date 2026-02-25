@@ -200,7 +200,7 @@
 </div>
 {% endif %}
 <div class="table-responsive">
-    <table class="table data-table">
+    <table class="table data-table" id="receiptsTable">
         <thead>
             <tr>
                 <th>Date</th>
@@ -242,7 +242,7 @@
 </div>
 {% endif %}
 <div class="table-responsive">
-    <table class="table data-table">
+    <table class="table data-table" id="allocationsTable">
         <thead>
             <tr>
                 <th>Worker</th>
@@ -296,7 +296,7 @@
     <a href="/payments/new?job_id={{ job.id }}" class="btn btn-primary btn-sm">Add Payment</a>
 </div>
 <div class="table-responsive">
-    <table class="table data-table">
+    <table class="table data-table" id="paymentsTable">
         <thead>
             <tr>
                 <th>Payment Code</th>
@@ -737,6 +737,68 @@ function editAllocation(allocId) {
     // TODO: Implement edit allocation modal
     window.location.href = '/allocations/' + allocId + '/edit';
 }
+
+// Initialize DataTables with fixed height and scrolling
+// Wait for jQuery and DataTables to be available
+(function() {
+    let initialized = false;
+    
+    function initDataTables() {
+        // Prevent multiple initializations
+        if (initialized) return;
+        
+        // Check if jQuery and DataTables are loaded
+        if (typeof window.jQuery === 'undefined' || typeof window.jQuery.fn.DataTable === 'undefined') {
+            // jQuery or DataTables not loaded yet, try again in 100ms (max 10 attempts)
+            if (initDataTables.attempts === undefined) initDataTables.attempts = 0;
+            if (initDataTables.attempts < 10) {
+                initDataTables.attempts++;
+                setTimeout(initDataTables, 100);
+            }
+            return;
+        }
+        
+        initialized = true;
+        const $ = window.jQuery;
+        
+        // Destroy any existing DataTable instances to avoid conflicts
+        if ($.fn.DataTable.isDataTable('#receiptsTable')) {
+            $('#receiptsTable').DataTable().destroy();
+        }
+        if ($.fn.DataTable.isDataTable('#allocationsTable')) {
+            $('#allocationsTable').DataTable().destroy();
+        }
+        if ($.fn.DataTable.isDataTable('#paymentsTable')) {
+            $('#paymentsTable').DataTable().destroy();
+        }
+        
+        const tableConfig = {
+            scrollY: '400px',
+            scrollCollapse: true,
+            paging: true,
+            searching: true,
+            pageLength: 25,
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+            order: [],
+            columnDefs: [
+                { orderable: false, targets: -1 } // Disable sorting on last column (Actions)
+            ]
+        };
+        
+        // Initialize each table
+        $('#receiptsTable').DataTable(tableConfig);
+        $('#allocationsTable').DataTable(tableConfig);
+        $('#paymentsTable').DataTable(tableConfig);
+    }
+    
+    // Start initialization when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initDataTables);
+    } else {
+        // DOM already ready, but wait a bit for scripts to load
+        setTimeout(initDataTables, 50);
+    }
+})();
 </script>
 {% endblock %}
 
