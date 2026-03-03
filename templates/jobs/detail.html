@@ -21,7 +21,18 @@
                 {% if job.source %}
                 <p><strong>Source:</strong> <span class="badge bg-primary">{{ job.source.value|title }}</span></p>
                 {% endif %}
-                <p><strong>Client:</strong> {{ job.client_name or "-" }}</p>
+                <p><strong>Client:</strong> 
+                    {% if job.client %}
+                        <a href="/clients/{{ job.client.id }}">{{ job.client.name }}</a>
+                        {% if job.client.company_name and job.client.company_name != job.client.name %}
+                            <small class="text-muted">({{ job.client.company_name }})</small>
+                        {% endif %}
+                    {% elif job.client_name %}
+                        {{ job.client_name }} <small class="text-muted">(legacy)</small>
+                    {% else %}
+                        -
+                    {% endif %}
+                </p>
                 <p><strong>Type:</strong> <span class="badge bg-info">{{ job.job_type.value }}</span></p>
                 <p><strong>Status:</strong> <span class="badge bg-secondary">{{ job.status.value }}</span></p>
                 {% if job.is_finalized %}

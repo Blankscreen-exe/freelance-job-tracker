@@ -1,0 +1,377 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit' if client else 'New' }} Client{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>{{ 'Edit' if client else 'New' }} Client</h1>
+    
+    <form method="POST" action="{{ '/clients/' + client.id|string + '/edit' if client else '/clients/new' }}">
+        <!-- Basic Information Tab -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">Basic Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="client_code" class="form-label">Client Code</label>
+                            <input type="text" class="form-control" id="client_code" name="client_code" 
+                                   value="{{ client.client_code if client else suggested_code }}" 
+                                   {{ 'readonly' if client else '' }} required>
+                            <small class="form-text text-muted">Auto-generated if left empty</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Client Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                   value="{{ client.name if client else '' }}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="source" class="form-label">Source (Where Found)</label>
+                            <select class="form-select" id="source" name="source">
+                                <option value="">-- Select Source --</option>
+                                <option value="upwork" {{ 'selected' if client and client.source and client.source.value == 'upwork' else '' }}>Upwork</option>
+                                <option value="freelancer" {{ 'selected' if client and client.source and client.source.value == 'freelancer' else '' }}>Freelancer</option>
+                                <option value="linkedin" {{ 'selected' if client and client.source and client.source.value == 'linkedin' else '' }}>LinkedIn</option>
+                                <option value="fiverr" {{ 'selected' if client and client.source and client.source.value == 'fiverr' else '' }}>Fiverr</option>
+                                <option value="direct" {{ 'selected' if client and client.source and client.source.value == 'direct' else '' }}>Direct</option>
+                                <option value="other" {{ 'selected' if client and client.source and client.source.value == 'other' else '' }}>Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="source_url" class="form-label">Source URL</label>
+                            <input type="url" class="form-control" id="source_url" name="source_url" 
+                                   value="{{ client.source_url if client else '' }}"
+                                   placeholder="e.g., Upwork profile, LinkedIn profile">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="source_notes" class="form-label">Source Notes</label>
+                    <textarea class="form-control" id="source_notes" name="source_notes" rows="2"
+                              placeholder="Additional notes about how this client was found">{{ client.source_notes if client else '' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact Information Tab -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">Contact Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Primary Contact</h6>
+                        <div class="mb-3">
+                            <label for="contact_person" class="form-label">Contact Person</label>
+                            <input type="text" class="form-control" id="contact_person" name="contact_person" 
+                                   value="{{ client.contact_person if client else '' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Primary Email</label>
+                            <input type="email" class="form-control" id="email" name="email" 
+                                   value="{{ client.email if client else '' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Primary Phone</label>
+                            <input type="tel" class="form-control" id="phone" name="phone" 
+                                   value="{{ client.phone if client else '' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="mobile" class="form-label">Mobile Phone</label>
+                            <input type="tel" class="form-control" id="mobile" name="mobile" 
+                                   value="{{ client.mobile if client else '' }}">
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6>Additional Contact Methods</h6>
+                        <div class="mb-3">
+                            <label for="alternative_email" class="form-label">Alternative Email</label>
+                            <input type="email" class="form-control" id="alternative_email" name="alternative_email" 
+                                   value="{{ client.alternative_email if client else '' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="alternative_phone" class="form-label">Alternative Phone</label>
+                            <input type="tel" class="form-control" id="alternative_phone" name="alternative_phone" 
+                                   value="{{ client.alternative_phone if client else '' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="telegram" class="form-label">Telegram</label>
+                            <input type="text" class="form-control" id="telegram" name="telegram" 
+                                   value="{{ client.telegram if client else '' }}" placeholder="@username">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="whatsapp" class="form-label">WhatsApp</label>
+                            <input type="text" class="form-control" id="whatsapp" name="whatsapp" 
+                                   value="{{ client.whatsapp if client else '' }}" placeholder="+1234567890">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="skype" class="form-label">Skype</label>
+                            <input type="text" class="form-control" id="skype" name="skype" 
+                                   value="{{ client.skype if client else '' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="linkedin" class="form-label">LinkedIn Profile URL</label>
+                            <input type="url" class="form-control" id="linkedin" name="linkedin" 
+                                   value="{{ client.linkedin if client else '' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="other_contact" class="form-label">Other Contact</label>
+                            <input type="text" class="form-control" id="other_contact" name="other_contact" 
+                                   value="{{ client.other_contact if client else '' }}"
+                                   placeholder="Other contact method">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="preferred_communication" class="form-label">Preferred Communication Method</label>
+                    <select class="form-select" id="preferred_communication" name="preferred_communication">
+                        <option value="">-- Select --</option>
+                        <option value="email" {{ 'selected' if client and client.preferred_communication == 'email' else '' }}>Email</option>
+                        <option value="phone" {{ 'selected' if client and client.preferred_communication == 'phone' else '' }}>Phone</option>
+                        <option value="telegram" {{ 'selected' if client and client.preferred_communication == 'telegram' else '' }}>Telegram</option>
+                        <option value="whatsapp" {{ 'selected' if client and client.preferred_communication == 'whatsapp' else '' }}>WhatsApp</option>
+                        <option value="skype" {{ 'selected' if client and client.preferred_communication == 'skype' else '' }}>Skype</option>
+                        <option value="linkedin" {{ 'selected' if client and client.preferred_communication == 'linkedin' else '' }}>LinkedIn</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Company Information Tab -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">Company Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="company_name" class="form-label">Company Name</label>
+                            <input type="text" class="form-control" id="company_name" name="company_name" 
+                                   value="{{ client.company_name if client else '' }}">
+                            <small class="form-text text-muted">If different from client name</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="company_registration" class="form-label">Registration/Tax ID</label>
+                            <input type="text" class="form-control" id="company_registration" name="company_registration" 
+                                   value="{{ client.company_registration if client else '' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="company_website" class="form-label">Company Website</label>
+                            <input type="url" class="form-control" id="company_website" name="company_website" 
+                                   value="{{ client.company_website if client else '' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="company_email" class="form-label">Company Email</label>
+                            <input type="email" class="form-control" id="company_email" name="company_email" 
+                                   value="{{ client.company_email if client else '' }}"
+                                   placeholder="info@company.com">
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="industry" class="form-label">Industry</label>
+                            <input type="text" class="form-control" id="industry" name="industry" 
+                                   value="{{ client.industry if client else '' }}"
+                                   placeholder="e.g., Software Development, E-commerce">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="company_size" class="form-label">Company Size</label>
+                            <select class="form-select" id="company_size" name="company_size">
+                                <option value="">-- Select --</option>
+                                <option value="1-10" {{ 'selected' if client and client.company_size == '1-10' else '' }}>1-10 employees</option>
+                                <option value="11-50" {{ 'selected' if client and client.company_size == '11-50' else '' }}>11-50 employees</option>
+                                <option value="51-200" {{ 'selected' if client and client.company_size == '51-200' else '' }}>51-200 employees</option>
+                                <option value="201-500" {{ 'selected' if client and client.company_size == '201-500' else '' }}>201-500 employees</option>
+                                <option value="501-1000" {{ 'selected' if client and client.company_size == '501-1000' else '' }}>501-1000 employees</option>
+                                <option value="1000+" {{ 'selected' if client and client.company_size == '1000+' else '' }}>1000+ employees</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Address Information Tab -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">Address Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="address_line1" class="form-label">Address Line 1</label>
+                            <input type="text" class="form-control" id="address_line1" name="address_line1" 
+                                   value="{{ client.address_line1 if client else '' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="address_line2" class="form-label">Address Line 2</label>
+                            <input type="text" class="form-control" id="address_line2" name="address_line2" 
+                                   value="{{ client.address_line2 if client else '' }}"
+                                   placeholder="Apartment, suite, etc.">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="city" class="form-label">City</label>
+                            <input type="text" class="form-control" id="city" name="city" 
+                                   value="{{ client.city if client else '' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="state_province" class="form-label">State/Province</label>
+                            <input type="text" class="form-control" id="state_province" name="state_province" 
+                                   value="{{ client.state_province if client else '' }}">
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="postal_code" class="form-label">Postal/ZIP Code</label>
+                            <input type="text" class="form-control" id="postal_code" name="postal_code" 
+                                   value="{{ client.postal_code if client else '' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="country" class="form-label">Country</label>
+                            <input type="text" class="form-control" id="country" name="country" 
+                                   value="{{ client.country if client else '' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="timezone" class="form-label">Timezone</label>
+                            <input type="text" class="form-control" id="timezone" name="timezone" 
+                                   value="{{ client.timezone if client else '' }}"
+                                   placeholder="e.g., America/New_York, UTC, Europe/London">
+                            <small class="form-text text-muted">IANA timezone identifier</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="working_hours" class="form-label">Working Hours</label>
+                            <input type="text" class="form-control" id="working_hours" name="working_hours" 
+                                   value="{{ client.working_hours if client else '' }}"
+                                   placeholder="e.g., 9 AM - 5 PM EST">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Legacy address field (optional, for backward compatibility) -->
+                <div class="mb-3">
+                    <label for="address" class="form-label">Full Address (Legacy)</label>
+                    <textarea class="form-control" id="address" name="address" rows="2"
+                              placeholder="Full address as text (auto-filled from above fields)">{{ client.address if client else '' }}</textarea>
+                    <small class="form-text text-muted">This field is auto-populated from the address components above</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notes and Additional Information -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">Notes and Additional Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="4"
+                                      placeholder="General notes about the client">{{ client.notes if client else '' }}</textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="internal_notes" class="form-label">Internal Notes</label>
+                            <textarea class="form-control" id="internal_notes" name="internal_notes" rows="4"
+                                      placeholder="Internal-only notes (not shared with client)">{{ client.internal_notes if client else '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="tags" class="form-label">Tags</label>
+                    <input type="text" class="form-control" id="tags" name="tags" 
+                           value="{{ client.tags if client else '' }}"
+                           placeholder="Comma-separated tags (e.g., vip, recurring, startup)">
+                    <small class="form-text text-muted">Use tags to categorize clients</small>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" value="true"
+                               {{ 'checked' if not client or client.is_active else '' }}>
+                        <label class="form-check-label" for="is_active">
+                            Active Client
+                        </label>
+                        <small class="form-text text-muted d-block">Uncheck to mark as inactive (archived clients are always inactive)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-save"></i> {{ 'Update' if client else 'Create' }} Client
+            </button>
+            <a href="{{ '/clients/' + client.id|string if client else '/clients' }}" class="btn btn-secondary">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+
+<script>
+// Auto-populate legacy address field from components
+document.addEventListener('DOMContentLoaded', function() {
+    const addressFields = ['address_line1', 'address_line2', 'city', 'state_province', 'postal_code', 'country'];
+    const addressField = document.getElementById('address');
+    
+    if (addressField) {
+        function updateAddress() {
+            const parts = addressFields
+                .map(id => {
+                    const field = document.getElementById(id);
+                    return field ? field.value : '';
+                })
+                .filter(val => val && val.trim());
+            addressField.value = parts.join(', ');
+        }
+        
+        addressFields.forEach(id => {
+            const field = document.getElementById(id);
+            if (field) {
+                field.addEventListener('input', updateAddress);
+                field.addEventListener('change', updateAddress);
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

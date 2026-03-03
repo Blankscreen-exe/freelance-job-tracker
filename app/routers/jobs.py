@@ -7,7 +7,7 @@ from decimal import Decimal
 import json
 from datetime import date
 from app.database import get_db
-from app.models import Job, Receipt, JobAllocation, SettingsVersion, JobCalculationSnapshot, Worker, Payment, JobSource
+from app.models import Job, Receipt, JobAllocation, SettingsVersion, JobCalculationSnapshot, Worker, Payment, JobSource, Client
 from app.schemas import JobCreate
 from app.services.calculations import get_job_totals, compute_allocations, get_settings_rules
 from app.dependencies import get_db_session
@@ -37,12 +37,14 @@ async def list_jobs(request: Request, db: Session = Depends(get_db_session)):
 async def new_job_form(request: Request, db: Session = Depends(get_db_session)):
     active_version = get_active_settings_version(db)
     workers = db.query(Worker).filter(Worker.is_archived == False).all()
+    clients = db.query(Client).filter(Client.is_archived == False).order_by(Client.name).all()
     next_code = generate_job_code(db)
     return templates.TemplateResponse("jobs/form.html", {
         "request": request,
         "job": None,
         "active_settings_version": active_version,
         "workers": workers,
+        "clients": clients,
         "suggested_code": next_code
     })
 
@@ -51,6 +53,7 @@ async def create_job(
     request: Request,
     job_code: str = Form(None),
     title: str = Form(...),
+    client_id: str = Form(None),  # NEW: Client selection
     client_name: str = Form(None),
     job_post_url: str = Form(...),
     source: str = Form(None),
@@ -81,17 +84,31 @@ async def create_job(
     if existing:
         active_version = get_active_settings_version(db)
         workers = db.query(Worker).filter(Worker.is_archived == False).all()
+        clients = db.query(Client).filter(Client.is_archived == False).order_by(Client.name).all()
         next_code = generate_job_code(db)
         return templates.TemplateResponse("jobs/form.html", {
             "request": request,
             "job": None,
             "active_settings_version": active_version,
             "workers": workers,
+            "clients": clients,
             "suggested_code": next_code,
             "error": f"Job code {job_code} already exists"
         }, status_code=400)
     
     active_version = get_active_settings_version(db)
+    
+    # Handle client_id
+    client_id_int = None
+    if client_id and client_id.strip():
+        try:
+            client_id_int = int(client_id)
+            # Verify client exists
+            client_obj = db.query(Client).filter(Client.id == client_id_int).first()
+            if not client_obj:
+                raise HTTPException(status_code=400, detail="Selected client not found")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid client ID")
     
     connects_used_int = int(connects_used) if connects_used and connects_used.strip() else None
     
@@ -106,6 +123,7 @@ async def create_job(
     job = Job(
         job_code=job_code,
         title=title,
+        client_id=client_id_int,  # NEW: Link to client
         client_name=client_name if client_name else None,
         job_post_url=job_post_url,
         source=source_enum,
@@ -226,12 +244,14 @@ async def edit_job_form(request: Request, job_id: int, db: Session = Depends(get
     
     active_version = get_active_settings_version(db)
     workers = db.query(Worker).filter(Worker.is_archived == False).all()
+    clients = db.query(Client).filter(Client.is_archived == False).order_by(Client.name).all()
     
     return templates.TemplateResponse("jobs/form.html", {
         "request": request,
         "job": job,
         "active_settings_version": active_version,
-        "workers": workers
+        "workers": workers,
+        "clients": clients
     })
 
 @router.post("/jobs/{job_id}/edit")
@@ -240,6 +260,7 @@ async def update_job(
     job_id: int,
     job_code: str = Form(...),
     title: str = Form(...),
+    client_id: str = Form(None),  # NEW: Client selection
     client_name: str = Form(None),
     job_post_url: str = Form(...),
     source: str = Form(None),
@@ -273,13 +294,27 @@ async def update_job(
     if existing:
         active_version = get_active_settings_version(db)
         workers = db.query(Worker).filter(Worker.is_archived == False).all()
+        clients = db.query(Client).filter(Client.is_archived == False).order_by(Client.name).all()
         return templates.TemplateResponse("jobs/form.html", {
             "request": request,
             "job": job,
             "active_settings_version": active_version,
             "workers": workers,
+            "clients": clients,
             "error": f"Job code {job_code} already exists"
         }, status_code=400)
+    
+    # Handle client_id
+    client_id_int = None
+    if client_id and client_id.strip():
+        try:
+            client_id_int = int(client_id)
+            # Verify client exists
+            client_obj = db.query(Client).filter(Client.id == client_id_int).first()
+            if not client_obj:
+                raise HTTPException(status_code=400, detail="Selected client not found")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid client ID")
     
     # Convert source string to enum if provided
     source_enum = None
@@ -291,6 +326,7 @@ async def update_job(
     
     job.job_code = job_code
     job.title = title
+    job.client_id = client_id_int  # NEW: Update client link
     job.client_name = client_name if client_name else None
     job.job_post_url = job_post_url
     job.source = source_enum

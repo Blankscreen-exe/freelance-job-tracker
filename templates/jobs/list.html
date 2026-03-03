@@ -22,7 +22,15 @@
         <tr>
             <td>{{ job.job_code }}</td>
             <td><a href="/jobs/{{ job.id }}">{{ job.title }}</a></td>
-            <td>{{ job.client_name or "-" }}</td>
+            <td>
+                {% if job.client %}
+                    <a href="/clients/{{ job.client.id }}">{{ job.client.name }}</a>
+                {% elif job.client_name %}
+                    {{ job.client_name }} <small class="text-muted">(legacy)</small>
+                {% else %}
+                    -
+                {% endif %}
+            </td>
             <td><span class="badge bg-info">{{ job.job_type.value }}</span></td>
             <td>
                 <span class="badge {% if job.status.value == 'active' %}bg-success{% elif job.status.value == 'completed' %}bg-primary{% else %}bg-secondary{% endif %}">

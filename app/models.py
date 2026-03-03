@@ -50,6 +50,74 @@ class ExpenseCategory(str, enum.Enum):
     OFFICE = "office"
     OTHER = "other"
 
+class Client(Base):
+    __tablename__ = "clients"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_code = Column(String, unique=True, index=True, nullable=False)  # C01, C02, etc.
+    name = Column(String, nullable=False)
+    
+    # Source Information (where client was found)
+    source = Column(SQLEnum(JobSource), nullable=True)  # Reuse JobSource enum: upwork, linkedin, direct, etc.
+    source_url = Column(String, nullable=True)  # URL where client was found (e.g., Upwork profile, LinkedIn profile)
+    source_notes = Column(Text, nullable=True)  # Additional notes about how client was found
+    
+    # Primary Contact Information
+    contact_person = Column(String, nullable=True)  # Primary contact name
+    email = Column(String, nullable=True)  # Primary email
+    phone = Column(String, nullable=True)  # Primary phone
+    mobile = Column(String, nullable=True)  # Mobile phone (alternative)
+    
+    # Additional Contact Methods
+    alternative_email = Column(String, nullable=True)  # Secondary email
+    alternative_phone = Column(String, nullable=True)  # Secondary phone
+    telegram = Column(String, nullable=True)  # Telegram username/ID
+    whatsapp = Column(String, nullable=True)  # WhatsApp number
+    skype = Column(String, nullable=True)  # Skype username
+    linkedin = Column(String, nullable=True)  # LinkedIn profile URL
+    other_contact = Column(String, nullable=True)  # Other contact method
+    
+    # Company/Organization Information
+    company_name = Column(String, nullable=True)  # Company name (if different from client name)
+    company_registration = Column(String, nullable=True)  # Registration number/tax ID
+    company_website = Column(String, nullable=True)  # Company website
+    company_email = Column(String, nullable=True)  # Company email (info@company.com)
+    
+    # Address Information
+    address_line1 = Column(String, nullable=True)  # Street address
+    address_line2 = Column(String, nullable=True)  # Apartment, suite, etc.
+    city = Column(String, nullable=True)
+    state_province = Column(String, nullable=True)  # State or Province
+    postal_code = Column(String, nullable=True)  # ZIP/Postal code
+    country = Column(String, nullable=True)
+    timezone = Column(String, nullable=True)  # Timezone (e.g., "America/New_York", "UTC")
+    
+    # Legacy address field (for backward compatibility, can be populated from address fields)
+    address = Column(Text, nullable=True)  # Full address as text (legacy)
+    
+    # Additional Information
+    industry = Column(String, nullable=True)  # Industry sector
+    company_size = Column(String, nullable=True)  # e.g., "1-10", "11-50", "51-200", etc.
+    preferred_communication = Column(String, nullable=True)  # Preferred contact method
+    working_hours = Column(String, nullable=True)  # Working hours/timezone notes
+    
+    # Notes and Internal Information
+    notes = Column(Text, nullable=True)  # General notes
+    internal_notes = Column(Text, nullable=True)  # Internal-only notes (not shared with client)
+    tags = Column(String, nullable=True)  # Comma-separated tags for categorization
+    
+    # Status
+    is_archived = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True)  # Active client (vs archived)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_contacted = Column(DateTime, nullable=True)  # Last time client was contacted
+
+    # Relationships
+    jobs = relationship("Job", back_populates="client")
+
 class Worker(Base):
     __tablename__ = "workers"
 
@@ -100,6 +168,9 @@ class Job(Base):
     company_address = Column(Text, nullable=True)
     client_notes = Column(Text, nullable=True)
     
+    # Client relationship (NEW)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=True)  # Link to Client
+    
     # Upwork-specific fields (kept for backward compatibility)
     upwork_job_id = Column(String, nullable=True)
     upwork_contract_id = Column(String, nullable=True)
@@ -128,6 +199,7 @@ class Job(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     settings_version = relationship("SettingsVersion", back_populates="jobs")
+    client = relationship("Client", back_populates="jobs")
     receipts = relationship("Receipt", back_populates="job", cascade="all, delete-orphan")
     allocations = relationship("JobAllocation", back_populates="job", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="job")
