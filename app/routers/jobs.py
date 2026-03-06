@@ -216,10 +216,40 @@ async def create_job(
     return RedirectResponse(url=f"/jobs/{job.id}", status_code=303)
 
 @router.get("/jobs/{job_id}", response_class=HTMLResponse)
-async def job_detail(request: Request, job_id: int, db: Session = Depends(get_db_session)):
+async def job_detail(
+    request: Request, 
+    job_id: int, 
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
+):
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Check access permissions
+    active_role = get_active_role(request)
+    if active_role == AuthUserRole.WORKER:
+        # Workers can only view jobs they're assigned to or have payment history
+        if not user.worker:
+            raise HTTPException(status_code=403, detail="You don't have permission to view this job")
+        
+        # Check if worker has allocation or payment history for this job
+        has_allocation = db.query(JobAllocation).filter(
+            JobAllocation.job_id == job_id,
+            JobAllocation.worker_id == user.worker.id
+        ).first()
+        
+        has_payment = db.query(Payment).filter(
+            Payment.job_id == job_id,
+            Payment.worker_id == user.worker.id
+        ).first()
+        
+        if not has_allocation and not has_payment:
+            raise HTTPException(status_code=403, detail="You don't have permission to view this job")
+    elif active_role == AuthUserRole.MIDDLEMAN:
+        # Middlemen can only view jobs they created
+        if job.created_by_user_id != user.id:
+            raise HTTPException(status_code=403, detail="You can only view jobs you created")
     
     receipts = db.query(Receipt).filter(Receipt.job_id == job_id).order_by(Receipt.received_date).all()
     allocations = db.query(JobAllocation).filter(JobAllocation.job_id == job_id).all()
@@ -433,10 +463,23 @@ async def update_job(
     return RedirectResponse(url=f"/jobs/{job.id}", status_code=303)
 
 @router.post("/jobs/{job_id}/archive")
-async def archive_job(job_id: int, db: Session = Depends(get_db_session)):
+async def archive_job(
+    request: Request,
+    job_id: int, 
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
+):
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Check permissions: Workers cannot archive jobs, Middlemen can only archive their jobs
+    active_role = get_active_role(request)
+    if active_role == AuthUserRole.WORKER:
+        raise HTTPException(status_code=403, detail="Workers cannot archive jobs")
+    elif active_role == AuthUserRole.MIDDLEMAN:
+        if job.created_by_user_id != user.id:
+            raise HTTPException(status_code=403, detail="You can only archive jobs you created")
     
     job.status = "archived"
     db.commit()
@@ -446,6 +489,7 @@ async def archive_job(job_id: int, db: Session = Depends(get_db_session)):
 # Receipt routes
 @router.post("/jobs/{job_id}/receipts/new")
 async def create_receipt(
+    request: Request,
     job_id: int,
     received_date: str = Form(...),
     amount_received: str = Form(...),
@@ -456,13 +500,22 @@ async def create_receipt(
     allocation_mode: str = Form("predefined"),
     custom_allocations_json: str = Form(None),
     use_custom_allocations: str = Form("false"),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
 ):
     import json
     
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Check permissions: Workers cannot create receipts, Middlemen can only create for their jobs
+    active_role = get_active_role(request)
+    if active_role == AuthUserRole.WORKER:
+        raise HTTPException(status_code=403, detail="Workers cannot create receipts")
+    elif active_role == AuthUserRole.MIDDLEMAN:
+        if job.created_by_user_id != user.id:
+            raise HTTPException(status_code=403, detail="You can only create receipts for jobs you created")
     
     if job.is_finalized:
         raise HTTPException(status_code=400, detail="Cannot add receipts to finalized job")
@@ -522,7 +575,12 @@ async def create_receipt(
     return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)
 
 @router.get("/receipts/{receipt_id}/edit", response_class=HTMLResponse)
-async def edit_receipt_form(request: Request, receipt_id: int, db: Session = Depends(get_db_session)):
+async def edit_receipt_form(
+    request: Request, 
+    receipt_id: int, 
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
+):
     import json
     
     receipt = db.query(Receipt).filter(Receipt.id == receipt_id).first()
@@ -530,6 +588,15 @@ async def edit_receipt_form(request: Request, receipt_id: int, db: Session = Dep
         raise HTTPException(status_code=404, detail="Receipt not found")
     
     job = receipt.job
+    
+    # Check permissions: Workers cannot edit receipts, Middlemen can only edit for their jobs
+    active_role = get_active_role(request)
+    if active_role == AuthUserRole.WORKER:
+        raise HTTPException(status_code=403, detail="Workers cannot edit receipts")
+    elif active_role == AuthUserRole.MIDDLEMAN:
+        if job.created_by_user_id != user.id:
+            raise HTTPException(status_code=403, detail="You can only edit receipts for jobs you created")
+    
     if job.is_finalized:
         raise HTTPException(status_code=400, detail="Cannot edit receipts in finalized job")
     
@@ -577,6 +644,7 @@ async def edit_receipt_form(request: Request, receipt_id: int, db: Session = Dep
 
 @router.post("/receipts/{receipt_id}/edit")
 async def update_receipt(
+    request: Request,
     receipt_id: int,
     received_date: str = Form(...),
     amount_received: str = Form(...),
@@ -587,7 +655,8 @@ async def update_receipt(
     allocation_mode: str = Form("predefined"),
     custom_allocations_json: str = Form(None),
     use_custom_allocations: str = Form("false"),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
 ):
     import json
     
@@ -596,6 +665,15 @@ async def update_receipt(
         raise HTTPException(status_code=404, detail="Receipt not found")
     
     job = receipt.job
+    
+    # Check permissions: Workers cannot edit receipts, Middlemen can only edit for their jobs
+    active_role = get_active_role(request)
+    if active_role == AuthUserRole.WORKER:
+        raise HTTPException(status_code=403, detail="Workers cannot edit receipts")
+    elif active_role == AuthUserRole.MIDDLEMAN:
+        if job.created_by_user_id != user.id:
+            raise HTTPException(status_code=403, detail="You can only edit receipts for jobs you created")
+    
     if job.is_finalized:
         raise HTTPException(status_code=400, detail="Cannot edit receipts in finalized job")
     
@@ -643,13 +721,28 @@ async def update_receipt(
     return RedirectResponse(url=f"/jobs/{job.id}", status_code=303)
 
 @router.post("/receipts/{receipt_id}/delete")
-async def delete_receipt(receipt_id: int, db: Session = Depends(get_db_session)):
+async def delete_receipt(
+    request: Request,
+    receipt_id: int, 
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
+):
     receipt = db.query(Receipt).filter(Receipt.id == receipt_id).first()
     if not receipt:
         raise HTTPException(status_code=404, detail="Receipt not found")
     
+    job = receipt.job
+    
+    # Check permissions: Workers cannot delete receipts, Middlemen can only delete for their jobs
+    active_role = get_active_role(request)
+    if active_role == AuthUserRole.WORKER:
+        raise HTTPException(status_code=403, detail="Workers cannot delete receipts")
+    elif active_role == AuthUserRole.MIDDLEMAN:
+        if job.created_by_user_id != user.id:
+            raise HTTPException(status_code=403, detail="You can only delete receipts for jobs you created")
+    
     job_id = receipt.job_id
-    if receipt.job.is_finalized:
+    if job.is_finalized:
         raise HTTPException(status_code=400, detail="Cannot delete receipts from finalized job")
     
     db.delete(receipt)
@@ -821,10 +914,23 @@ async def delete_allocation(alloc_id: int, db: Session = Depends(get_db_session)
 
 # Finalize routes
 @router.post("/jobs/{job_id}/finalize")
-async def finalize_job(job_id: int, db: Session = Depends(get_db_session)):
+async def finalize_job(
+    request: Request,
+    job_id: int, 
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
+):
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Check permissions: Workers cannot finalize jobs, Middlemen can only finalize their jobs
+    active_role = get_active_role(request)
+    if active_role == AuthUserRole.WORKER:
+        raise HTTPException(status_code=403, detail="Workers cannot finalize jobs")
+    elif active_role == AuthUserRole.MIDDLEMAN:
+        if job.created_by_user_id != user.id:
+            raise HTTPException(status_code=403, detail="You can only finalize jobs you created")
     
     if job.is_finalized:
         return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)
@@ -867,10 +973,23 @@ async def finalize_job(job_id: int, db: Session = Depends(get_db_session)):
     return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)
 
 @router.post("/jobs/{job_id}/unfinalize")
-async def unfinalize_job(job_id: int, db: Session = Depends(get_db_session)):
+async def unfinalize_job(
+    request: Request,
+    job_id: int, 
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
+):
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Check permissions: Workers cannot unfinalize jobs, Middlemen can only unfinalize their jobs
+    active_role = get_active_role(request)
+    if active_role == AuthUserRole.WORKER:
+        raise HTTPException(status_code=403, detail="Workers cannot unfinalize jobs")
+    elif active_role == AuthUserRole.MIDDLEMAN:
+        if job.created_by_user_id != user.id:
+            raise HTTPException(status_code=403, detail="You can only unfinalize jobs you created")
     
     if job.snapshot:
         db.delete(job.snapshot)

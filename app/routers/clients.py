@@ -211,11 +211,24 @@ async def create_client(
     return RedirectResponse(url=f"/clients/{client.id}", status_code=303)
 
 @router.get("/clients/{client_id}", response_class=HTMLResponse)
-async def client_detail(request: Request, client_id: int, db: Session = Depends(get_db_session)):
+async def client_detail(
+    request: Request, 
+    client_id: int, 
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
+):
     """Show client detail page"""
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
+    
+    # Check access permissions
+    active_role = get_active_role(request)
+    if active_role == AuthUserRole.MIDDLEMAN:
+        # Middlemen can only view clients they created
+        if client.created_by_user_id != user.id:
+            raise HTTPException(status_code=403, detail="You can only view clients you created")
+    # Workers and Admin can view all clients (no restriction)
     
     # Get linked projects
     jobs = db.query(Job).filter(Job.client_id == client_id).order_by(desc(Job.created_at)).all()

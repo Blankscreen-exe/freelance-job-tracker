@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -6,14 +6,33 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.database import engine, Base
 from app.routers import dashboard, workers, jobs, payments, settings, expenses, clients, auth, users
 from app.config import settings as app_settings
+from app.config import BASE_DIR
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Upwork Tracker")
 
+# Templates for error pages
+templates = Jinja2Templates(directory=BASE_DIR / "templates")
+
 # Add session middleware
 app.add_middleware(SessionMiddleware, secret_key=app_settings.SECRET_KEY)
+
+# Exception handler for 403 errors
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    if exc.status_code == 403:
+        return templates.TemplateResponse(
+            "errors/403.html",
+            {"request": request, "detail": exc.detail},
+            status_code=403
+        )
+    # For other HTTP exceptions, use default behavior
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail}
+    )
 
 # Include routers (auth first for home/login routes)
 app.include_router(auth.router)

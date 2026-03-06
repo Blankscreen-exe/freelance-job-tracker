@@ -11,7 +11,7 @@ from app.models import Payment, Worker, Job, User
 from app.dependencies import get_db_session
 from app.utils import generate_payment_code
 from app.config import BASE_DIR
-from app.auth import get_current_user, get_active_role, UserRole as AuthUserRole
+from app.auth import get_current_user, get_active_role, require_role, UserRole as AuthUserRole
 
 router = APIRouter()
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
@@ -112,7 +112,17 @@ async def list_payments(
     })
 
 @router.get("/payments/new", response_class=HTMLResponse)
-async def new_payment_form(request: Request, db: Session = Depends(get_db_session), job_id: int = None):
+async def new_payment_form(
+    request: Request, 
+    db: Session = Depends(get_db_session), 
+    job_id: int = None,
+    user: User = Depends(get_current_user)
+):
+    # Workers cannot create payments
+    active_role = get_active_role(request)
+    if active_role == AuthUserRole.WORKER:
+        raise HTTPException(status_code=403, detail="Workers cannot create payments")
+    
     workers = db.query(Worker).filter(Worker.is_archived == False).order_by(Worker.name).all()
     jobs = db.query(Job).filter(Job.status != "archived").order_by(Job.title).all()
     next_code = generate_payment_code(db)
@@ -138,8 +148,14 @@ async def create_payment(
     reference: str = Form(None),
     notes: str = Form(None),
     is_paid: str = Form(None),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
 ):
+    # Workers cannot create payments
+    active_role = get_active_role(request)
+    if active_role == AuthUserRole.WORKER:
+        raise HTTPException(status_code=403, detail="Workers cannot create payments")
+    
     # Auto-generate code if not provided
     if not payment_code or payment_code.strip() == "":
         payment_code = generate_payment_code(db)
@@ -161,6 +177,12 @@ async def create_payment(
     
     job_id_int = int(job_id) if job_id and job_id != "None" else None
     
+    # Middlemen can only create payments for jobs they own
+    if active_role == AuthUserRole.MIDDLEMAN and job_id_int:
+        job = db.query(Job).filter(Job.id == job_id_int).first()
+        if job and job.created_by_user_id != user.id:
+            raise HTTPException(status_code=403, detail="You can only create payments for jobs you created")
+    
     payment = Payment(
         payment_code=payment_code,
         worker_id=int(worker_id),
@@ -179,7 +201,20 @@ async def create_payment(
     return RedirectResponse(url="/payments", status_code=303)
 
 @router.post("/payments/{payment_id}/delete")
-async def delete_payment(payment_id: int, db: Session = Depends(get_db_session)):
+async def delete_payment(
+    request: Request,
+    payment_id: int, 
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
+):
+    # Workers cannot delete payments
+    try:
+        active_role = get_active_role(request)
+        if active_role == AuthUserRole.WORKER:
+            raise HTTPException(status_code=403, detail="Workers cannot delete payments")
+    except HTTPException:
+        raise
+    
     payment = db.query(Payment).filter(Payment.id == payment_id).first()
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
@@ -190,8 +225,21 @@ async def delete_payment(payment_id: int, db: Session = Depends(get_db_session))
     return RedirectResponse(url="/payments", status_code=303)
 
 @router.post("/payments/{payment_id}/mark-paid")
-async def mark_payment_paid(payment_id: int, db: Session = Depends(get_db_session)):
+async def mark_payment_paid(
+    request: Request,
+    payment_id: int, 
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
+):
     """Mark a payment as paid"""
+    # Workers cannot mark payments as paid
+    try:
+        active_role = get_active_role(request)
+        if active_role == AuthUserRole.WORKER:
+            raise HTTPException(status_code=403, detail="Workers cannot modify payment status")
+    except HTTPException:
+        raise
+    
     payment = db.query(Payment).filter(Payment.id == payment_id).first()
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
@@ -203,8 +251,21 @@ async def mark_payment_paid(payment_id: int, db: Session = Depends(get_db_sessio
     return RedirectResponse(url="/payments", status_code=303)
 
 @router.post("/payments/{payment_id}/mark-unpaid")
-async def mark_payment_unpaid(payment_id: int, db: Session = Depends(get_db_session)):
+async def mark_payment_unpaid(
+    request: Request,
+    payment_id: int, 
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
+):
     """Mark a payment as unpaid"""
+    # Workers cannot mark payments as unpaid
+    try:
+        active_role = get_active_role(request)
+        if active_role == AuthUserRole.WORKER:
+            raise HTTPException(status_code=403, detail="Workers cannot modify payment status")
+    except HTTPException:
+        raise
+    
     payment = db.query(Payment).filter(Payment.id == payment_id).first()
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
@@ -216,7 +277,20 @@ async def mark_payment_unpaid(payment_id: int, db: Session = Depends(get_db_sess
     return RedirectResponse(url="/payments", status_code=303)
 
 @router.get("/payments/{payment_id}/edit", response_class=HTMLResponse)
-async def edit_payment_form(request: Request, payment_id: int, db: Session = Depends(get_db_session)):
+async def edit_payment_form(
+    request: Request, 
+    payment_id: int, 
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
+):
+    # Workers cannot edit payments
+    try:
+        active_role = get_active_role(request)
+        if active_role == AuthUserRole.WORKER:
+            raise HTTPException(status_code=403, detail="Workers cannot edit payments")
+    except HTTPException:
+        raise
+    
     payment = db.query(Payment).filter(Payment.id == payment_id).first()
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
@@ -245,8 +319,16 @@ async def update_payment(
     reference: str = Form(None),
     notes: str = Form(None),
     is_paid: str = Form(None),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
 ):
+    # Workers cannot edit payments
+    try:
+        active_role = get_active_role(request)
+        if active_role == AuthUserRole.WORKER:
+            raise HTTPException(status_code=403, detail="Workers cannot edit payments")
+    except HTTPException:
+        raise
     payment = db.query(Payment).filter(Payment.id == payment_id).first()
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
