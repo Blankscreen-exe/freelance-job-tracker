@@ -5,15 +5,20 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 import json
 from app.database import get_db
-from app.models import SettingsVersion
+from app.models import SettingsVersion, User
 from app.dependencies import get_db_session
+from app.auth import get_current_user, require_role, UserRole as AuthUserRole
 from app.config import BASE_DIR
 
 router = APIRouter()
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
 @router.get("/settings", response_class=HTMLResponse)
-async def list_settings(request: Request, db: Session = Depends(get_db_session)):
+async def list_settings(
+    request: Request, 
+    db: Session = Depends(get_db_session),
+    _: User = Depends(require_role([AuthUserRole.ADMIN]))
+):
     versions = db.query(SettingsVersion).order_by(desc(SettingsVersion.created_at)).all()
     active_version = next((v for v in versions if v.is_active), None)
     
@@ -24,7 +29,10 @@ async def list_settings(request: Request, db: Session = Depends(get_db_session))
     })
 
 @router.get("/settings/new", response_class=HTMLResponse)
-async def new_settings_form(request: Request):
+async def new_settings_form(
+    request: Request,
+    _: User = Depends(require_role([AuthUserRole.ADMIN]))
+):
     # Default rules JSON
     default_rules = {
         "currency_default": "USD",
@@ -46,7 +54,8 @@ async def create_settings(
     name: str = Form(...),
     rules_json: str = Form(...),
     notes: str = Form(None),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
+    _: User = Depends(require_role([AuthUserRole.ADMIN]))
 ):
     # Validate JSON
     try:
@@ -72,7 +81,12 @@ async def create_settings(
     return RedirectResponse(url=f"/settings/{version.id}", status_code=303)
 
 @router.get("/settings/{version_id}", response_class=HTMLResponse)
-async def settings_detail(request: Request, version_id: int, db: Session = Depends(get_db_session)):
+async def settings_detail(
+    request: Request, 
+    version_id: int, 
+    db: Session = Depends(get_db_session),
+    _: User = Depends(require_role([AuthUserRole.ADMIN]))
+):
     version = db.query(SettingsVersion).filter(SettingsVersion.id == version_id).first()
     if not version:
         raise HTTPException(status_code=404, detail="Settings version not found")
@@ -87,7 +101,11 @@ async def settings_detail(request: Request, version_id: int, db: Session = Depen
     })
 
 @router.post("/settings/{version_id}/activate")
-async def activate_settings(version_id: int, db: Session = Depends(get_db_session)):
+async def activate_settings(
+    version_id: int, 
+    db: Session = Depends(get_db_session),
+    _: User = Depends(require_role([AuthUserRole.ADMIN]))
+):
     version = db.query(SettingsVersion).filter(SettingsVersion.id == version_id).first()
     if not version:
         raise HTTPException(status_code=404, detail="Settings version not found")
@@ -102,7 +120,12 @@ async def activate_settings(version_id: int, db: Session = Depends(get_db_sessio
     return RedirectResponse(url="/settings", status_code=303)
 
 @router.get("/settings/{version_id}/clone", response_class=HTMLResponse)
-async def clone_settings_form(request: Request, version_id: int, db: Session = Depends(get_db_session)):
+async def clone_settings_form(
+    request: Request, 
+    version_id: int, 
+    db: Session = Depends(get_db_session),
+    _: User = Depends(require_role([AuthUserRole.ADMIN]))
+):
     version = db.query(SettingsVersion).filter(SettingsVersion.id == version_id).first()
     if not version:
         raise HTTPException(status_code=404, detail="Settings version not found")
@@ -120,7 +143,8 @@ async def clone_settings(
     name: str = Form(...),
     rules_json: str = Form(...),
     notes: str = Form(None),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
+    _: User = Depends(require_role([AuthUserRole.ADMIN]))
 ):
     source_version = db.query(SettingsVersion).filter(SettingsVersion.id == version_id).first()
     if not source_version:
