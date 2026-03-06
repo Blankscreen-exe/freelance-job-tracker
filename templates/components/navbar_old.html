@@ -1,0 +1,57 @@
+<!--
+    OLD NAVBAR - PRESERVED FOR FUTURE REFERENCE
+    ============================================
+    
+    This file contains the original Bootstrap top navbar that was replaced
+    with a sidebar navigation system.
+    
+    Last used: Before sidebar implementation
+    Date preserved: 2024
+    
+    HOW TO RESTORE:
+    ----------------
+    1. Copy the navbar HTML below (lines 14-48)
+    2. Replace the sidebar section in templates/base.html with this navbar
+    3. Remove or comment out the sidebar CSS styles
+    4. Update the body layout to remove flexbox and sidebar margin adjustments
+    5. Restore the original container structure: <div class="container mt-4">
+    
+    NOTE: Make sure to also restore the original body structure without
+    the sidebar-related classes and JavaScript.
+-->
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">Upwork Tracker</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" href="/">Dashboard</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/jobs">Jobs</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/clients">
+                        <i class="bi bi-people"></i> Clients
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/workers">Workers</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/payments">Payments</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/expenses">Expenses</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/settings">Settings</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
