@@ -7,10 +7,11 @@ from decimal import Decimal
 from datetime import date
 from typing import Optional
 from app.database import get_db
-from app.models import Payment, Worker, Job
+from app.models import Payment, Worker, Job, User
 from app.dependencies import get_db_session
 from app.utils import generate_payment_code
 from app.config import BASE_DIR
+from app.auth import get_current_user, get_active_role, UserRole as AuthUserRole
 
 router = APIRouter()
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
@@ -22,10 +23,30 @@ async def list_payments(
     job_id: Optional[str] = Query(None),
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
 ):
-    # Build query with filters
+    # Get active role for filtering
+    active_role = get_active_role(request)
+    
+    # Build query with role-based filtering
     query = db.query(Payment)
+    
+    # Apply role-based base filter
+    if active_role == AuthUserRole.ADMIN:
+        # Admin sees all payments
+        pass
+    elif active_role == AuthUserRole.WORKER:
+        # Worker sees only payments related to their jobs
+        if user.worker:
+            query = query.filter(Payment.worker_id == user.worker.id)
+        else:
+            query = query.filter(Payment.id == -1)  # No results
+    elif active_role == AuthUserRole.MIDDLEMAN:
+        # Middleman sees only payments related to jobs they created
+        query = query.join(Job).filter(Job.created_by_user_id == user.id)
+    else:
+        query = query.filter(Payment.id == -1)  # No results
     
     # Filter by worker
     if worker_id and worker_id.strip():

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Numeric, Date, DateTime, Text, Enum as SQLEnum
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Numeric, Date, DateTime, Text, Enum as SQLEnum, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime, date
 from decimal import Decimal
@@ -49,6 +49,58 @@ class ExpenseCategory(str, enum.Enum):
     MARKETING = "marketing"
     OFFICE = "office"
     OTHER = "other"
+
+class UserRole(str, enum.Enum):
+    ADMIN = "admin"
+    WORKER = "worker"
+    MIDDLEMAN = "middleman"
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    email = Column(String, nullable=True)  # Email address
+    password_hash = Column(String, nullable=False)  # bcrypt hashed password
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    roles = relationship("UserRoleAssignment", back_populates="user", cascade="all, delete-orphan")
+    worker = relationship("Worker", back_populates="user", uselist=False)
+    middleman = relationship("Middleman", back_populates="user", uselist=False)
+    created_jobs = relationship("Job", foreign_keys="Job.created_by_user_id", back_populates="created_by_user")
+    created_clients = relationship("Client", foreign_keys="Client.created_by_user_id", back_populates="created_by_user")
+
+class UserRoleAssignment(Base):
+    __tablename__ = "user_role_assignments"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    role = Column(SQLEnum(UserRole), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("User", back_populates="roles")
+    
+    # Unique constraint: one role per user
+    __table_args__ = (UniqueConstraint('user_id', 'role', name='uq_user_role'),)
+
+# Temporary stub for Middleman - will be replaced in Task 2
+class Middleman(Base):
+    __tablename__ = "middlemen"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    middleman_code = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, unique=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("User", back_populates="middleman")
+    # jobs relationship will be added in Task 2
 
 class Client(Base):
     __tablename__ = "clients"
@@ -115,6 +167,10 @@ class Client(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_contacted = Column(DateTime, nullable=True)  # Last time client was contacted
 
+    # Ownership tracking
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    created_by_user = relationship("User", foreign_keys=[created_by_user_id], back_populates="created_clients")
+
     # Relationships
     jobs = relationship("Job", back_populates="client")
 
@@ -128,11 +184,13 @@ class Worker(Base):
     notes = Column(Text, nullable=True)
     is_archived = Column(Boolean, default=False)
     is_owner = Column(Boolean, default=False)  # Mark this worker as the owner/me
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, unique=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     allocations = relationship("JobAllocation", back_populates="worker")
     payments = relationship("Payment", back_populates="worker")
+    user = relationship("User", back_populates="worker")
 
 class SettingsVersion(Base):
     __tablename__ = "settings_versions"
@@ -170,6 +228,10 @@ class Job(Base):
     
     # Client relationship (NEW)
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=True)  # Link to Client
+    
+    # Ownership tracking
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    created_by_user = relationship("User", foreign_keys=[created_by_user_id], back_populates="created_jobs")
     
     # Upwork-specific fields (kept for backward compatibility)
     upwork_job_id = Column(String, nullable=True)

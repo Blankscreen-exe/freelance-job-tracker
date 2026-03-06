@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Profile - Upwork Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="bi bi-person-circle"></i> My Profile</h1>
+    </div>
+
+    {% if request.query_params.get("success") == "password_changed" %}
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        Password changed successfully!
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+
+    {% if error %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> Account Information</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-4">Username:</dt>
+                        <dd class="col-sm-8">{{ user.username }}</dd>
+                        
+                        <dt class="col-sm-4">Active Role:</dt>
+                        <dd class="col-sm-8">
+                            <span class="badge bg-primary">{{ active_role.value|title }}</span>
+                        </dd>
+                        
+                        <dt class="col-sm-4">Assigned Roles:</dt>
+                        <dd class="col-sm-8">
+                            {% for role in user_roles %}
+                            <span class="badge bg-secondary me-1">{{ role|title }}</span>
+                            {% endfor %}
+                        </dd>
+                        
+                        <dt class="col-sm-4">Status:</dt>
+                        <dd class="col-sm-8">
+                            {% if user.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+
+            {% if worker %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-person-workspace"></i> Linked Worker</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Code:</strong> {{ worker.worker_code }}</p>
+                    <p><strong>Name:</strong> {{ worker.name }}</p>
+                    <a href="/workers/{{ worker.id }}" class="btn btn-sm btn-outline-primary">View Worker</a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if middleman %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-person-badge"></i> Linked Middleman</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Code:</strong> {{ middleman.middleman_code }}</p>
+                    <p><strong>Name:</strong> {{ middleman.name }}</p>
+                    <a href="/middlemen/{{ middleman.id }}" class="btn btn-sm btn-outline-primary">View Middleman</a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-key"></i> Change Password</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="/profile/change-password">
+                        <div class="mb-3">
+                            <label for="current_password" class="form-label">Current Password</label>
+                            <input type="password" class="form-control" id="current_password" name="current_password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="new_password" class="form-label">New Password</label>
+                            <input type="password" class="form-control" id="new_password" name="new_password" required minlength="6">
+                            <small class="form-text text-muted">Minimum 6 characters</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirm_password" class="form-label">Confirm New Password</label>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" required minlength="6">
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Change Password
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

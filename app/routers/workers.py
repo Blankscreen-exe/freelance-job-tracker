@@ -64,18 +64,24 @@ except (ImportError, OSError) as e:
     HTML = None  # Placeholder to avoid NameError
 
 from app.database import get_db
-from app.models import Worker, Payment
+from app.models import Worker, Payment, User
 from app.schemas import WorkerCreate, WorkerUpdate
 from app.services.calculations import compute_worker_totals
 from app.dependencies import get_db_session
 from app.utils import generate_worker_code
 from app.config import BASE_DIR
+from app.auth import get_current_user
 
 router = APIRouter()
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
 @router.get("/workers", response_class=HTMLResponse)
-async def list_workers(request: Request, db: Session = Depends(get_db_session)):
+async def list_workers(
+    request: Request, 
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
+):
+    """Worker Roster - accessible to all authenticated users"""
     workers = db.query(Worker).filter(Worker.is_archived == False).order_by(Worker.name).all()
     return templates.TemplateResponse("workers/list.html", {
         "request": request,

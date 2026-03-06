@@ -269,14 +269,14 @@
     <!-- Sidebar -->
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <a href="/" class="sidebar-brand">Upwork Tracker</a>
+            <a href="/dashboard" class="sidebar-brand">Upwork Tracker</a>
             <button class="sidebar-toggle" id="sidebarToggle" title="Toggle Sidebar" aria-label="Toggle sidebar">
                 <i class="bi bi-chevron-left"></i>
             </button>
         </div>
         <ul class="sidebar-nav">
             <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="/">
+                <a class="sidebar-nav-link" href="/dashboard">
                     <i class="bi bi-speedometer2"></i>
                     <span>Dashboard</span>
                 </a>
@@ -345,6 +345,56 @@
                     </li>
                 </ul>
             </li>
+            {% if request.session.get("user_id") %}
+            {% set user_roles = request.session.get("user_roles", []) %}
+            {% set active_role = request.session.get("active_role", "") %}
+            {% if active_role == "admin" %}
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="/users">
+                    <i class="bi bi-people"></i>
+                    <span>Users</span>
+                </a>
+            </li>
+            {% endif %}
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="/profile">
+                    <i class="bi bi-person-circle"></i>
+                    <span>Profile</span>
+                </a>
+            </li>
+            {% if user_roles|length > 1 and 'admin' not in user_roles %}
+            <li class="sidebar-nav-item">
+                <div class="dropdown">
+                    <a class="sidebar-nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-arrow-repeat"></i>
+                        <span>Role: {{ active_role|title }}</span>
+                    </a>
+                    <ul class="dropdown-menu">
+                        {% for role in user_roles %}
+                        {% if role in ['worker', 'middleman'] %}
+                        <li>
+                            <form method="POST" action="/auth/switch-role" style="display: inline;">
+                                <input type="hidden" name="role" value="{{ role }}">
+                                <button type="submit" class="dropdown-item {% if role == active_role %}active{% endif %}">
+                                    {{ role|title }}
+                                </button>
+                            </form>
+                        </li>
+                        {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            </li>
+            {% endif %}
+            <li class="sidebar-nav-item">
+                <form method="POST" action="/logout" style="display: inline;">
+                    <button type="submit" class="sidebar-nav-link btn btn-link text-start w-100 border-0 p-0" style="color: inherit;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Logout</span>
+                    </button>
+                </form>
+            </li>
+            {% endif %}
         </ul>
     </nav>
 

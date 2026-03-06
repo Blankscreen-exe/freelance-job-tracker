@@ -16,5 +16,5 @@ def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
         )
     return credentials.username
 
-def get_db_session(db: Session = Depends(get_db)):
-    return db
+# Alias for get_db to maintain consistency across the codebase
+get_db_session = get_db

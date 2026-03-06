@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from app.models import Worker, Job, Payment, Expense, Client
+from app.models import Worker, Job, Payment, Expense, Client, Middleman
 
 def generate_worker_code(db: Session) -> str:
     """Generate next worker code (W01, W02, etc.)"""
@@ -96,3 +96,17 @@ def generate_client_code(db: Session) -> str:
             max_num = max(max_num, num)
     
     return f"C{max_num + 1:02d}"
+
+def generate_middleman_code(db: Session) -> str:
+    """Generate next middleman code (M01, M02, etc.)"""
+    middlemen = db.query(Middleman).all()
+    if not middlemen:
+        return "M01"
+    import re
+    max_num = 0
+    for middleman in middlemen:
+        match = re.match(r'M(\d+)', middleman.middleman_code)
+        if match:
+            num = int(match.group(1))
+            max_num = max(max_num, num)
+    return f"M{max_num + 1:02d}"

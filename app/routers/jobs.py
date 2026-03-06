@@ -7,12 +7,13 @@ from decimal import Decimal
 import json
 from datetime import date
 from app.database import get_db
-from app.models import Job, Receipt, JobAllocation, SettingsVersion, JobCalculationSnapshot, Worker, Payment, JobSource, Client
+from app.models import Job, Receipt, JobAllocation, SettingsVersion, JobCalculationSnapshot, Worker, Payment, JobSource, Client, User
 from app.schemas import JobCreate
 from app.services.calculations import get_job_totals, compute_allocations, get_settings_rules
 from app.dependencies import get_db_session
 from app.utils import generate_job_code
 from app.services.payment_generator import generate_payments_from_receipt
+from app.auth import get_current_user, get_active_role, UserRole as AuthUserRole
 from app.config import BASE_DIR
 
 router = APIRouter()
@@ -26,15 +27,71 @@ def get_active_settings_version(db: Session) -> SettingsVersion:
     return version
 
 @router.get("/jobs", response_class=HTMLResponse)
-async def list_jobs(request: Request, db: Session = Depends(get_db_session)):
-    jobs = db.query(Job).filter(Job.status != "archived").order_by(desc(Job.created_at)).all()
+async def list_jobs(
+    request: Request, 
+    db: Session = Depends(get_db_session), 
+    user: User = Depends(get_current_user)
+):
+    from app.auth import get_active_role, UserRole as AuthUserRole
+    from app.models import JobAllocation, Payment
+    
+    active_role = get_active_role(request)
+    
+    if active_role == AuthUserRole.ADMIN:
+        # Admin sees all jobs
+        jobs = db.query(Job).filter(Job.status != "archived").order_by(desc(Job.created_at)).all()
+    elif active_role == AuthUserRole.WORKER:
+        # Worker sees jobs with allocations OR jobs with payment history
+        if not user.worker:
+            jobs = []
+        else:
+            # Jobs with active allocations
+            jobs_with_allocations = db.query(Job).join(JobAllocation).filter(
+                JobAllocation.worker_id == user.worker.id,
+                Job.status != "archived"
+            ).distinct().all()
+            
+            # Jobs with payment history (even if allocation removed)
+            jobs_with_payments = db.query(Job).join(Payment).filter(
+                Payment.worker_id == user.worker.id,
+                Job.status != "archived"
+            ).distinct().all()
+            
+            # Combine and deduplicate
+            job_ids = set()
+            jobs = []
+            for job in jobs_with_allocations + jobs_with_payments:
+                if job.id not in job_ids:
+                    job_ids.add(job.id)
+                    jobs.append(job)
+            
+            # Sort by created_at descending
+            jobs.sort(key=lambda j: j.created_at, reverse=True)
+    elif active_role == AuthUserRole.MIDDLEMAN:
+        # Middleman sees only jobs they created
+        jobs = db.query(Job).filter(
+            Job.created_by_user_id == user.id,
+            Job.status != "archived"
+        ).order_by(desc(Job.created_at)).all()
+    else:
+        jobs = []
+    
     return templates.TemplateResponse("jobs/list.html", {
         "request": request,
         "jobs": jobs
     })
 
 @router.get("/jobs/new", response_class=HTMLResponse)
-async def new_job_form(request: Request, db: Session = Depends(get_db_session)):
+async def new_job_form(
+    request: Request, 
+    db: Session = Depends(get_db_session), 
+    user: User = Depends(get_current_user)
+):
+    # Only Admin and Middleman can create jobs
+    active_role = get_active_role(request)
+    if active_role == AuthUserRole.WORKER:
+        raise HTTPException(status_code=403, detail="Workers cannot create jobs")
+    
     active_version = get_active_settings_version(db)
     workers = db.query(Worker).filter(Worker.is_archived == False).all()
     clients = db.query(Client).filter(Client.is_archived == False).order_by(Client.name).all()
@@ -73,7 +130,8 @@ async def create_job(
     start_date: str = Form(None),
     end_date: str = Form(None),
     connects_used: str = Form(None),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
 ):
     # Auto-generate code if not provided
     if not job_code or job_code.strip() == "":
@@ -112,6 +170,11 @@ async def create_job(
     
     connects_used_int = int(connects_used) if connects_used and connects_used.strip() else None
     
+    # Only Admin and Middleman can create jobs
+    active_role = get_active_role(request)
+    if active_role == AuthUserRole.WORKER:
+        raise HTTPException(status_code=403, detail="Workers cannot create jobs")
+    
     # Convert source string to enum if provided
     source_enum = None
     if source and source.strip():
@@ -143,7 +206,8 @@ async def create_job(
         start_date=date.fromisoformat(start_date) if start_date else None,
         end_date=date.fromisoformat(end_date) if end_date else None,
         connects_used=connects_used_int,
-        settings_version_id=active_version.id
+        settings_version_id=active_version.id,
+        created_by_user_id=user.id  # Track ownership
     )
     db.add(job)
     db.commit()
@@ -234,13 +298,24 @@ async def job_detail(request: Request, job_id: int, db: Session = Depends(get_db
     })
 
 @router.get("/jobs/{job_id}/edit", response_class=HTMLResponse)
-async def edit_job_form(request: Request, job_id: int, db: Session = Depends(get_db_session)):
+async def edit_job_form(
+    request: Request, 
+    job_id: int, 
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
+):
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     
     if job.is_finalized:
         return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)
+    
+    # Check ownership: Admin or creator can edit
+    active_role = get_active_role(request)
+    if active_role != AuthUserRole.ADMIN:
+        if job.created_by_user_id != user.id:
+            raise HTTPException(status_code=403, detail="You can only edit jobs you created")
     
     active_version = get_active_settings_version(db)
     workers = db.query(Worker).filter(Worker.is_archived == False).all()
@@ -280,7 +355,8 @@ async def update_job(
     start_date: str = Form(None),
     end_date: str = Form(None),
     connects_used: str = Form(None),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
 ):
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
@@ -288,6 +364,12 @@ async def update_job(
     
     if job.is_finalized:
         return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)
+    
+    # Check ownership: Admin or creator can edit
+    active_role = get_active_role(request)
+    if active_role != AuthUserRole.ADMIN:
+        if job.created_by_user_id != user.id:
+            raise HTTPException(status_code=403, detail="You can only edit jobs you created")
     
     # Check if job_code already exists (for other jobs)
     existing = db.query(Job).filter(Job.job_code == job_code, Job.id != job_id).first()
@@ -578,6 +660,7 @@ async def delete_receipt(receipt_id: int, db: Session = Depends(get_db_session))
 # Allocation routes
 @router.post("/jobs/{job_id}/allocations/new")
 async def create_allocation(
+    request: Request,
     job_id: int,
     worker_id: str = Form(None),
     label: str = Form(...),
@@ -585,7 +668,8 @@ async def create_allocation(
     share_type: str = Form(...),
     share_value: str = Form(...),
     notes: str = Form(None),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
 ):
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
@@ -593,6 +677,14 @@ async def create_allocation(
     
     if job.is_finalized:
         raise HTTPException(status_code=400, detail="Cannot add allocations to finalized job")
+    
+    # Check permissions: Only Admin and Middleman (for their jobs) can assign workers
+    active_role = get_active_role(request)
+    if active_role == AuthUserRole.WORKER:
+        raise HTTPException(status_code=403, detail="Workers cannot assign jobs")
+    elif active_role == AuthUserRole.MIDDLEMAN:
+        if job.created_by_user_id != user.id:
+            raise HTTPException(status_code=403, detail="You can only assign workers to jobs you created")
     
     worker_id_int = int(worker_id) if worker_id and worker_id != "None" else None
     

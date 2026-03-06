@@ -4,27 +4,57 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from app.database import get_db
-from app.models import Client, Job, JobSource
+from app.models import Client, Job, JobSource, User
 from app.dependencies import get_db_session
 from app.utils import generate_client_code
 from app.config import BASE_DIR
 from app.template_filters import get_templates
+from app.auth import get_current_user, get_active_role, UserRole as AuthUserRole
 
 router = APIRouter()
 templates = get_templates(BASE_DIR / "templates")
 
 @router.get("/clients", response_class=HTMLResponse)
-async def list_clients(request: Request, db: Session = Depends(get_db_session)):
+async def list_clients(
+    request: Request, 
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
+):
     """List all active clients"""
-    clients = db.query(Client).filter(Client.is_archived == False).order_by(Client.name).all()
+    active_role = get_active_role(request)
+    
+    if active_role == AuthUserRole.ADMIN:
+        # Admin sees all clients
+        clients = db.query(Client).filter(Client.is_archived == False).order_by(Client.name).all()
+    elif active_role == AuthUserRole.WORKER:
+        # Worker sees all clients (read-only)
+        clients = db.query(Client).filter(Client.is_archived == False).order_by(Client.name).all()
+    elif active_role == AuthUserRole.MIDDLEMAN:
+        # Middleman sees only clients they created
+        clients = db.query(Client).filter(
+            Client.created_by_user_id == user.id,
+            Client.is_archived == False
+        ).order_by(Client.name).all()
+    else:
+        clients = []
+    
     return templates.TemplateResponse("clients/list.html", {
         "request": request,
         "clients": clients
     })
 
 @router.get("/clients/new", response_class=HTMLResponse)
-async def new_client_form(request: Request, db: Session = Depends(get_db_session)):
+async def new_client_form(
+    request: Request, 
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
+):
     """Show form to create new client"""
+    # Only Admin and Middleman can create clients
+    active_role = get_active_role(request)
+    if active_role == AuthUserRole.WORKER:
+        raise HTTPException(status_code=403, detail="Workers cannot create clients")
+    
     from app.models import JobSource
     
     next_code = generate_client_code(db)
@@ -82,9 +112,15 @@ async def create_client(
     tags: str = Form(None),
     # Status
     is_active: str = Form("true"),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
 ):
     """Create new client"""
+    # Only Admin and Middleman can create clients
+    active_role = get_active_role(request)
+    if active_role == AuthUserRole.WORKER:
+        raise HTTPException(status_code=403, detail="Workers cannot create clients")
+    
     # Generate code if not provided
     if not client_code:
         client_code = generate_client_code(db)
@@ -164,7 +200,8 @@ async def create_client(
         internal_notes=internal_notes or None,
         tags=tags or None,
         # Status
-        is_active=is_active.lower() == "true" if is_active else True
+        is_active=is_active.lower() == "true" if is_active else True,
+        created_by_user_id=user.id  # Track ownership
     )
     
     db.add(client)
@@ -199,13 +236,24 @@ async def client_detail(request: Request, client_id: int, db: Session = Depends(
     })
 
 @router.get("/clients/{client_id}/edit", response_class=HTMLResponse)
-async def edit_client_form(request: Request, client_id: int, db: Session = Depends(get_db_session)):
+async def edit_client_form(
+    request: Request, 
+    client_id: int, 
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
+):
     """Show form to edit client"""
     from app.models import JobSource
     
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
+    
+    # Check ownership: Admin or creator can edit
+    active_role = get_active_role(request)
+    if active_role != AuthUserRole.ADMIN:
+        if client.created_by_user_id != user.id:
+            raise HTTPException(status_code=403, detail="You can only edit clients you created")
     
     return templates.TemplateResponse("clients/form.html", {
         "request": request,
@@ -261,12 +309,19 @@ async def update_client(
     tags: str = Form(None),
     # Status
     is_active: str = Form("true"),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user)
 ):
     """Update client"""
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
+    
+    # Check ownership: Admin or creator can edit
+    active_role = get_active_role(request)
+    if active_role != AuthUserRole.ADMIN:
+        if client.created_by_user_id != user.id:
+            raise HTTPException(status_code=403, detail="You can only edit clients you created")
     
     # Validate source enum if provided
     source_enum = None
