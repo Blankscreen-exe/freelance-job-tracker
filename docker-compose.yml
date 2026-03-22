@@ -81,6 +81,7 @@ services:
         condition: service_completed_successfully
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
       - "traefik.http.routers.tracker.rule=Host(`tracker.dev-in-trenches.com`)"
       - "traefik.http.routers.tracker.entrypoints=websecure"
       - "traefik.http.routers.tracker.tls.certresolver=letsencrypt"
