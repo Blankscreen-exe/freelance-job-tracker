@@ -45,6 +45,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'core.context_processors.app_globals',
             ],
         },
     },
@@ -103,6 +104,8 @@ if os.environ.get('AWS_S3_ENDPOINT_URL'):
     AWS_QUERYSTRING_AUTH = False
     AWS_S3_URL_PROTOCOL = 'http:'
     AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN', 'localhost:9000/tracker-media')
+
+APP_NAME = os.environ.get('APP_NAME', 'Job Tracker')
 
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
