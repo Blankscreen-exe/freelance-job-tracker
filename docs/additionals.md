@@ -1,2 +1,3 @@
-- minio for profile picture and other asset support
+- **DONE** minio for profile picture and other asset support
 - payment gateway integration for payment support
+- email engine support, admin notifications, middleman emails, client emails(invoice notification), worker emails (payment notification)
