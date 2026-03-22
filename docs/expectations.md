@@ -32,5 +32,5 @@ i am managing only projects and their payments here. project management and tick
 
 # scale to saas
 
-I am thinking of scaling this into a SaaS later where here could be multiple people managing their own agencies (software or not)
- 
+I am thinking of scaling this into a SaaS later where here could be multiple people managing their own agencies (software or not) so i should keep the structure to support that later on. 
+of course i would move to django rest framework, but for now i want to stick to django templates
