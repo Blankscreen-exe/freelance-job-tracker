@@ -41,6 +41,13 @@ services:
       - "traefik.http.routers.minio-api.middlewares=minio-strip"
       - "traefik.http.middlewares.minio-strip.stripprefix.prefixes=/s3"
       - "traefik.http.services.minio-api.loadbalancer.server.port=9000"
+      # Console UI
+      - "traefik.http.routers.minio-console.rule=Host(`tracker-minio.dev-in-trenches.com`)"
+      - "traefik.http.routers.minio-console.entrypoints=websecure"
+      - "traefik.http.routers.minio-console.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.minio-console.service=minio-console"
+      - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
+      - "traefik.docker.network=proxy"
     networks:
       - internal
       - proxy
