@@ -32,16 +32,15 @@ services:
       retries: 5
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.minio-api.rule=Host(`tracker.dev-in.trenches.com`) && PathPrefix(`/s3`)"
+      # S3 API — serves uploaded files at /s3/tracker-media/...
+      - "traefik.http.routers.minio-api.rule=Host(`tracker.dev-in-trenches.com`) && PathPrefix(`/s3`)"
       - "traefik.http.routers.minio-api.entrypoints=websecure"
       - "traefik.http.routers.minio-api.tls.certresolver=letsencrypt"
-      - "traefik.http.services.minio-api.loadbalancer.server.port=9000"
+      - "traefik.http.routers.minio-api.service=minio-api"
+      - "traefik.http.routers.minio-api.priority=2"
       - "traefik.http.routers.minio-api.middlewares=minio-strip"
       - "traefik.http.middlewares.minio-strip.stripprefix.prefixes=/s3"
-      - "traefik.http.routers.minio-console.rule=Host(`minio.dev-in.trenches.com`)"
-      - "traefik.http.routers.minio-console.entrypoints=websecure"
-      - "traefik.http.routers.minio-console.tls.certresolver=letsencrypt"
-      - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
+      - "traefik.http.services.minio-api.loadbalancer.server.port=9000"
     networks:
       - internal
       - proxy
@@ -68,13 +67,13 @@ services:
       DB_PORT: "5432"
       SECRET_KEY: change-me-in-production
       DEBUG: "false"
-      ALLOWED_HOSTS: tracker.dev-in.trenches.com
-      CSRF_TRUSTED_ORIGINS: https://tracker.dev-in.trenches.com
+      ALLOWED_HOSTS: tracker.dev-in-trenches.com
+      CSRF_TRUSTED_ORIGINS: https://tracker.dev-in-trenches.com
       AWS_S3_ENDPOINT_URL: http://minio:9000
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
       AWS_STORAGE_BUCKET_NAME: tracker-media
-      AWS_S3_CUSTOM_DOMAIN: tracker.dev-in.trenches.com/s3/tracker-media
+      AWS_S3_CUSTOM_DOMAIN: tracker.dev-in-trenches.com/s3/tracker-media
     depends_on:
       db:
         condition: service_healthy
@@ -82,12 +81,11 @@ services:
         condition: service_completed_successfully
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.tracker.rule=Host(`tracker.dev-in.trenches.com`)"
+      - "traefik.http.routers.tracker.rule=Host(`tracker.dev-in-trenches.com`)"
       - "traefik.http.routers.tracker.entrypoints=websecure"
       - "traefik.http.routers.tracker.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.tracker.service=tracker"
       - "traefik.http.services.tracker.loadbalancer.server.port=8000"
-      - "traefik.http.routers.tracker.priority=1"
-      - "traefik.http.routers.minio-api.priority=2"
     command: ["sh", "-c", "python manage.py migrate && python manage.py shell -c \"from core.models import User; User.objects.filter(username='admin').exists() or User.objects.create_superuser('admin', '', 'admin')\" && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"]
     networks:
       - internal
