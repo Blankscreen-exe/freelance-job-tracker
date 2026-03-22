@@ -8,13 +8,13 @@ services:
       POSTGRES_PASSWORD: tracker
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tracker"]
       interval: 5s
       timeout: 3s
       retries: 5
+    networks:
+      - internal
 
   minio:
     image: minio/minio
@@ -23,9 +23,6 @@ services:
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
-    ports:
-      - "9000:9000"
-      - "9001:9001"
     volumes:
       - miniodata:/data
     healthcheck:
@@ -33,6 +30,21 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.minio-api.rule=Host(`tracker.dev-in.trenches.com`) && PathPrefix(`/s3`)"
+      - "traefik.http.routers.minio-api.entrypoints=websecure"
+      - "traefik.http.routers.minio-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.minio-api.loadbalancer.server.port=9000"
+      - "traefik.http.routers.minio-api.middlewares=minio-strip"
+      - "traefik.http.middlewares.minio-strip.stripprefix.prefixes=/s3"
+      - "traefik.http.routers.minio-console.rule=Host(`minio.dev-in.trenches.com`)"
+      - "traefik.http.routers.minio-console.entrypoints=websecure"
+      - "traefik.http.routers.minio-console.tls.certresolver=letsencrypt"
+      - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
+    networks:
+      - internal
+      - proxy
 
   minio-init:
     image: minio/mc
@@ -40,39 +52,52 @@ services:
       minio:
         condition: service_healthy
     restart: "no"
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 minioadmin minioadmin &&
-      mc mb --ignore-existing local/tracker-media &&
-      mc anonymous set download local/tracker-media
-      "
+    entrypoint: ["sh", "-c", "mc alias set local http://minio:9000 minioadmin minioadmin && mc mb --ignore-existing local/tracker-media && mc anonymous set download local/tracker-media"]
+    networks:
+      - internal
 
   web:
     build: .
     restart: unless-stopped
-    ports:
-      - "8000:8000"
     environment:
       DB_ENGINE: django.db.backends.postgresql
       DB_NAME: tracker
       DB_USER: tracker
       DB_PASSWORD: tracker
       DB_HOST: db
-      DB_PORT: 5432
+      DB_PORT: "5432"
       SECRET_KEY: change-me-in-production
-      DEBUG: "true"
+      DEBUG: "false"
+      ALLOWED_HOSTS: tracker.dev-in.trenches.com
+      CSRF_TRUSTED_ORIGINS: https://tracker.dev-in.trenches.com
       AWS_S3_ENDPOINT_URL: http://minio:9000
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
       AWS_STORAGE_BUCKET_NAME: tracker-media
-      AWS_S3_CUSTOM_DOMAIN: localhost:9000/tracker-media
+      AWS_S3_CUSTOM_DOMAIN: tracker.dev-in.trenches.com/s3/tracker-media
     depends_on:
       db:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tracker.rule=Host(`tracker.dev-in.trenches.com`)"
+      - "traefik.http.routers.tracker.entrypoints=websecure"
+      - "traefik.http.routers.tracker.tls.certresolver=letsencrypt"
+      - "traefik.http.services.tracker.loadbalancer.server.port=8000"
+      - "traefik.http.routers.tracker.priority=1"
+      - "traefik.http.routers.minio-api.priority=2"
     command: ["sh", "-c", "python manage.py migrate && python manage.py shell -c \"from core.models import User; User.objects.filter(username='admin').exists() or User.objects.create_superuser('admin', '', 'admin')\" && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"]
+    networks:
+      - internal
+      - proxy
 
 volumes:
   pgdata:
   miniodata:
+
+networks:
+  proxy:
+    external: true
+  internal:
