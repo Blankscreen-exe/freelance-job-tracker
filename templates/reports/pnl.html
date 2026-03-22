@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}P&L Report{% endblock %}
+{% block page_title %}{% if is_admin %}Overall P&L Report{% else %}Project P&L Report{% endif %}{% endblock %}
+
+{% block content %}
+<!-- Date filter -->
+<form method="get" class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">From</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">To</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Filter</button>
+                <a href="{% url 'pnl_export' %}?date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}" class="btn btn-outline-success">
+                    <i class="bi bi-download"></i> Export CSV
+                </a>
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- Revenue & Deductions -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Revenue</h6>
+                <h3 class="text-success">${{ revenue|floatformat:2 }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Connect Deductions</h6>
+                <h3 class="text-warning">-${{ connect_deductions|floatformat:2 }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Platform Fees</h6>
+                <h3 class="text-warning">-${{ platform_fees|floatformat:2 }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gross Profit & Payouts -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-info">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Gross Profit</h6>
+                <h3 class="text-info">${{ gross_profit|floatformat:2 }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-danger">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Worker Payouts</h6>
+                <h3 class="text-danger">-${{ worker_payouts|floatformat:2 }}</h3>
+            </div>
+        </div>
+    </div>
+    {% if is_admin %}
+    <div class="col-md-4">
+        <div class="card border-danger">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Total Expenses</h6>
+                <h3 class="text-danger">-${{ total_expenses|floatformat:2 }}</h3>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Net Profit & Margin -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card {% if net_profit >= 0 %}border-success{% else %}border-danger{% endif %}">
+            <div class="card-body text-center">
+                <h6 class="text-muted">{% if is_admin %}Net Profit{% else %}Project Profit{% endif %}</h6>
+                <h2 class="{% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                    {% if net_profit >= 0 %}${{ abs_net_profit|floatformat:2 }}{% else %}-${{ abs_net_profit|floatformat:2 }}{% endif %}
+                </h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Margin</h6>
+                <h2>{{ margin|floatformat:1 }}%</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if is_admin and expenses_by_category %}
+<!-- Expense Breakdown (Admin only) -->
+<div class="card">
+    <div class="card-header"><h6 class="mb-0">Expenses by Category</h6></div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead><tr><th>Category</th><th class="text-end">Amount</th></tr></thead>
+            <tbody>
+                {% for category, amount in expenses_by_category.items %}
+                <tr>
+                    <td>{{ category }}</td>
+                    <td class="text-end text-danger">-${{ amount|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="fw-bold">
+                    <td>Total</td>
+                    <td class="text-end text-danger">-${{ total_expenses|floatformat:2 }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

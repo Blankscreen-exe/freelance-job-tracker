@@ -1,612 +1,177 @@
+{% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Freelance Tracker{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
-    <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <title>{% block title %}Job Tracker{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <style>
-        :root {
-            --sidebar-width: 250px;
-            --sidebar-collapsed-width: 60px;
-            --navbar-height: 56px;
-        }
-
-        body {
-            display: flex;
-            min-height: 100vh;
-            padding-top: var(--navbar-height);
-            margin: 0;
-        }
-
-        /* Top Navbar Styles */
-        .top-navbar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: var(--navbar-height);
-            z-index: 1001;
-        }
-
-        /* Sidebar Styles */
-        .sidebar {
-            position: fixed;
-            top: var(--navbar-height);
-            left: 0;
-            height: calc(100vh - var(--navbar-height));
-            width: var(--sidebar-width);
-            background-color: #212529;
-            color: #fff;
-            overflow-y: auto;
-            overflow-x: hidden;
-            z-index: 1000;
-            transition: width 0.3s ease;
-        }
-
-        .sidebar::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .sidebar::-webkit-scrollbar-track {
-            background: #1a1d20;
-        }
-
-        .sidebar::-webkit-scrollbar-thumb {
-            background: #495057;
-            border-radius: 3px;
-        }
-
-        .sidebar::-webkit-scrollbar-thumb:hover {
-            background: #6c757d;
-        }
-
-        .sidebar-header {
-            padding: 1rem;
-            border-bottom: 1px solid #495057;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .sidebar-brand {
-            color: #fff;
-            text-decoration: none;
-            font-weight: bold;
-            font-size: 1.25rem;
-            white-space: nowrap;
-        }
-
-        .sidebar-brand:hover {
-            color: #fff;
-            text-decoration: none;
-        }
-
-        .sidebar-toggle {
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 1.2rem;
-            cursor: pointer;
-            padding: 0.25rem 0.5rem;
-            transition: transform 0.3s ease;
-        }
-
-        .sidebar-toggle:hover {
-            color: #adb5bd;
-        }
-
-        .sidebar-nav {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .sidebar-nav-item {
-            margin: 0;
-        }
-
-        .sidebar-nav-link {
-            display: flex;
-            align-items: center;
-            padding: 0.75rem 1rem;
-            color: #adb5bd;
-            text-decoration: none;
-            transition: all 0.2s;
-            border-left: 3px solid transparent;
-        }
-
-        .sidebar-nav-link:hover {
-            background-color: #343a40;
-            color: #fff;
-            border-left-color: #0d6efd;
-        }
-
-        .sidebar-nav-link.active {
-            background-color: #343a40;
-            color: #fff;
-            border-left-color: #0d6efd;
-        }
-
-        .sidebar-nav-link i {
-            width: 20px;
-            margin-right: 0.75rem;
-            text-align: center;
-        }
-
-        /* Dropdown Styles */
-        .sidebar-dropdown {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-            background-color: #1a1d20;
-        }
-
-        .sidebar-dropdown.show {
-            max-height: 500px;
-        }
-
-        .sidebar-dropdown-link {
-            display: flex;
-            align-items: center;
-            padding: 0.625rem 1rem 0.625rem 2.5rem;
-            color: #adb5bd;
-            text-decoration: none;
-            transition: all 0.2s;
-            font-size: 0.9rem;
-        }
-
-        .sidebar-dropdown-link:hover {
-            background-color: #2c3136;
-            color: #fff;
-        }
-
-        .sidebar-dropdown-link.active {
-            background-color: #2c3136;
-            color: #0d6efd;
-        }
-
-        .sidebar-dropdown-link i {
-            width: 16px;
-            margin-right: 0.5rem;
-            text-align: center;
-        }
-
-        .sidebar-nav-link[data-bs-toggle="collapse"]::after {
-            content: '\f282';
-            font-family: 'bootstrap-icons';
-            margin-left: auto;
-            transition: transform 0.3s ease;
-            font-size: 0.875rem;
-        }
-
-        .sidebar-nav-link[data-bs-toggle="collapse"][aria-expanded="true"]::after {
-            transform: rotate(90deg);
-        }
-
-        /* Main Content Area */
-        .main-content {
-            margin-left: var(--sidebar-width);
-            flex: 1;
-            transition: margin-left 0.3s ease;
-            min-width: 0;
-        }
-
-        .content-wrapper {
-            padding: 1.5rem;
-        }
-
-        /* Collapsed Sidebar */
-        .sidebar.collapsed {
-            width: var(--sidebar-collapsed-width);
-        }
-
-        .sidebar.collapsed .sidebar-brand,
-        .sidebar.collapsed .sidebar-nav-link span:not(.badge) {
-            display: none;
-        }
-
-        .sidebar.collapsed .sidebar-nav-link {
-            justify-content: center;
-            padding: 0.75rem;
-        }
-
-        .sidebar.collapsed .sidebar-nav-link i {
-            margin-right: 0;
-        }
-
-        .sidebar.collapsed .sidebar-dropdown {
-            display: none;
-        }
-
-        .sidebar.collapsed ~ .main-content {
-            margin-left: var(--sidebar-collapsed-width);
-        }
-
-        /* Mobile Responsive */
-        @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
-                transition: transform 0.3s ease;
-            }
-
-            .sidebar.show {
-                transform: translateX(0);
-            }
-
-            .main-content {
-                margin-left: 0;
-            }
-
-            .mobile-menu-toggle {
-                display: block;
-                position: fixed;
-                top: calc(var(--navbar-height) + 1rem);
-                left: 1rem;
-                z-index: 1002;
-                background: #212529;
-                color: #fff;
-                border: none;
-                padding: 0.5rem;
-                border-radius: 0.25rem;
-                cursor: pointer;
-            }
-
-            .mobile-menu-toggle:hover {
-                background: #343a40;
-            }
-        }
-
-        @media (min-width: 769px) {
-            .mobile-menu-toggle {
-                display: none;
-            }
-        }
+        .sidebar { min-height: 100vh; }
+        .sidebar .nav-link { color: #adb5bd; padding: 0.6rem 1rem; }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { color: #fff; background: rgba(255,255,255,0.1); }
+        .sidebar .nav-link i { width: 1.5rem; }
+        .sidebar .nav-divider { border-top: 1px solid rgba(255,255,255,0.1); margin: 0.5rem 0; }
+        .content-area { min-height: 100vh; }
     </style>
+    {% block extra_css %}{% endblock %}
 </head>
 <body>
-    {% if request.session.get("user_id") %}
-    {% set user_roles = request.session.get("user_roles", []) %}
-    {% set active_role = request.session.get("active_role", "") %}
-    
-    <!-- Top Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark top-navbar">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/dashboard">Freelance Tracker</a>
-            <div class="d-flex align-items-center gap-2">
-                {% if user_roles|length > 1 and 'admin' not in user_roles %}
-                <!-- Role Switcher Dropdown -->
-                <div class="dropdown">
-                    <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-arrow-repeat"></i> {{ active_role|title }}
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        {% for role in user_roles %}
-                        {% if role in ['worker', 'middleman'] %}
-                        <li>
-                            <form method="POST" action="/auth/switch-role" style="display: inline;">
-                                <input type="hidden" name="role" value="{{ role }}">
-                                <button type="submit" class="dropdown-item {% if role == active_role %}active{% endif %}">
-                                    <i class="bi bi-{% if role == 'worker' %}person-workspace{% else %}person-badge{% endif %}"></i>
-                                    {{ role|title }}
-                                </button>
-                            </form>
-                        </li>
+    <div class="d-flex">
+        <!-- Sidebar -->
+        <nav class="sidebar bg-dark border-end border-secondary d-flex flex-column" style="width: 240px;">
+            <div class="p-3 border-bottom border-secondary">
+                <a href="/" class="text-decoration-none text-white">
+                    <h5 class="mb-0"><i class="bi bi-briefcase"></i> Job Tracker</h5>
+                </a>
+            </div>
+
+            <ul class="nav flex-column mt-2 flex-grow-1">
+                <li class="nav-item">
+                    <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">
+                        <i class="bi bi-speedometer2"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/jobs' in request.path %}active{% endif %}" href="/jobs/">
+                        <i class="bi bi-folder"></i> Jobs
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/clients' in request.path %}active{% endif %}" href="/clients/">
+                        <i class="bi bi-people"></i> Clients
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/middlemen' in request.path %}active{% endif %}" href="/middlemen/">
+                        <i class="bi bi-person-badge"></i> Middlemen
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/workers' in request.path %}active{% endif %}" href="/workers/">
+                        <i class="bi bi-person-workspace"></i> Workers
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/payments' in request.path %}active{% endif %}" href="/payments/">
+                        <i class="bi bi-cash-stack"></i> Payments
+                    </a>
+                </li>
+
+                <li><div class="nav-divider"></div></li>
+
+                <li class="nav-item">
+                    <a class="nav-link {% if '/expenses' in request.path %}active{% endif %}" href="/expenses/">
+                        <i class="bi bi-receipt"></i> Expenses
+                    </a>
+                </li>
+
+                {% if user.active_role != 'worker' or user.is_superuser %}
+                <li><div class="nav-divider"></div></li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/reports/pnl' in request.path %}active{% endif %}" href="{% url 'pnl_report' %}">
+                        <i class="bi bi-bar-chart-line"></i> P&L Report
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/reports/ledger' in request.path %}active{% endif %}" href="{% url 'ledger_report' %}">
+                        <i class="bi bi-journal-text"></i> Ledger
+                    </a>
+                </li>
+                {% endif %}
+
+                <li><div class="nav-divider"></div></li>
+
+                <li class="nav-item">
+                    <a class="nav-link {% if '/settings' in request.path %}active{% endif %}" href="/settings/">
+                        <i class="bi bi-gear"></i> Settings
+                    </a>
+                </li>
+                {% if user.is_superuser %}
+                <li class="nav-item">
+                    <a class="nav-link {% if '/users' in request.path %}active{% endif %}" href="/users/">
+                        <i class="bi bi-shield-lock"></i> Users
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+
+            {% if user.is_authenticated %}
+            <div class="p-3 border-top border-secondary">
+                {% if not user.is_superuser and user.get_roles|length > 1 %}
+                <div class="mb-2">
+                    <form method="POST" action="{% url 'switch_role' %}" class="d-flex gap-1">
+                        {% csrf_token %}
+                        {% for role in user.get_roles %}
+                        {% if role != 'admin' %}
+                        <button type="submit" name="role" value="{{ role }}"
+                                class="btn btn-sm {% if user.active_role == role %}btn-primary{% else %}btn-outline-secondary{% endif %} flex-fill">
+                            {{ role|title }}
+                        </button>
                         {% endif %}
                         {% endfor %}
-                    </ul>
+                    </form>
                 </div>
                 {% endif %}
-                <!-- Logout Button -->
-                <form method="POST" action="/logout" style="display: inline;">
-                    <button type="submit" class="btn btn-outline-light btn-sm">
-                        <i class="bi bi-box-arrow-right"></i> Logout
-                    </button>
-                </form>
-            </div>
-        </div>
-    </nav>
-    {% endif %}
-
-    <!-- Mobile Menu Toggle Button -->
-    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
-        <i class="bi bi-list"></i>
-    </button>
-
-    <!-- Sidebar -->
-    <nav class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <a class="sidebar-brand"><span class="text-info">Mode</span> {{ active_role|title }}</a>
-            <button class="sidebar-toggle" id="sidebarToggle" title="Toggle Sidebar" aria-label="Toggle sidebar">
-                <i class="bi bi-chevron-left"></i>
-            </button>
-        </div>
-        <ul class="sidebar-nav">
-            {% if active_role == "worker" %}
-            <!-- Worker Menu Items -->
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="/dashboard">
-                    <i class="bi bi-speedometer2"></i>
-                    <span>Dashboard</span>
-                </a>
-            </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="/jobs">
-                    <i class="bi bi-briefcase"></i>
-                    <span>Jobs</span>
-                </a>
-            </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="/profile">
-                    <i class="bi bi-person-circle"></i>
-                    <span>Profile</span>
-                </a>
-            </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" data-bs-toggle="collapse" href="#paymentsSubmenu" role="button" aria-expanded="false" aria-controls="paymentsSubmenu">
-                    <i class="bi bi-cash-stack"></i>
-                    <span>Payments</span>
-                </a>
-                <ul class="sidebar-dropdown collapse" id="paymentsSubmenu">
-                    <li>
-                        <a class="sidebar-dropdown-link" href="/payments">
-                            <i class="bi bi-list-ul"></i>
-                            <span>All Payments</span>
-                        </a>
-                    </li>
-                </ul>
-            </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="/workers">
-                    <i class="bi bi-person-workspace"></i>
-                    <span>Workers</span>
-                </a>
-            </li>
-            {% elif active_role == "middleman" %}
-            <!-- Middleman Menu Items -->
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="/dashboard">
-                    <i class="bi bi-speedometer2"></i>
-                    <span>Dashboard</span>
-                </a>
-            </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="/jobs">
-                    <i class="bi bi-briefcase"></i>
-                    <span>Jobs</span>
-                </a>
-            </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="/clients">
-                    <i class="bi bi-people"></i>
-                    <span>Clients</span>
-                </a>
-            </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="/workers">
-                    <i class="bi bi-person-workspace"></i>
-                    <span>Workers</span>
-                </a>
-            </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" data-bs-toggle="collapse" href="#paymentsSubmenu" role="button" aria-expanded="false" aria-controls="paymentsSubmenu">
-                    <i class="bi bi-cash-stack"></i>
-                    <span>Payments</span>
-                </a>
-                <ul class="sidebar-dropdown collapse" id="paymentsSubmenu">
-                    <li>
-                        <a class="sidebar-dropdown-link" href="/payments">
-                            <i class="bi bi-list-ul"></i>
-                            <span>All Payments</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a class="sidebar-dropdown-link" href="/payments/new">
-                            <i class="bi bi-plus-circle"></i>
-                            <span>New Payment</span>
-                        </a>
-                    </li>
-                </ul>
-            </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="/profile">
-                    <i class="bi bi-person-circle"></i>
-                    <span>Profile</span>
-                </a>
-            </li>
-            {% elif active_role == "admin" %}
-            <!-- Admin Menu Items (All) -->
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="/dashboard">
-                    <i class="bi bi-speedometer2"></i>
-                    <span>Dashboard</span>
-                </a>
-            </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="/jobs">
-                    <i class="bi bi-briefcase"></i>
-                    <span>Jobs</span>
-                </a>
-            </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="/clients">
-                    <i class="bi bi-people"></i>
-                    <span>Clients</span>
-                </a>
-            </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="/workers">
-                    <i class="bi bi-person-workspace"></i>
-                    <span>Workers</span>
-                </a>
-            </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" data-bs-toggle="collapse" href="#paymentsSubmenu" role="button" aria-expanded="false" aria-controls="paymentsSubmenu">
-                    <i class="bi bi-cash-stack"></i>
-                    <span>Payments</span>
-                </a>
-                <ul class="sidebar-dropdown collapse" id="paymentsSubmenu">
-                    <li>
-                        <a class="sidebar-dropdown-link" href="/payments">
-                            <i class="bi bi-list-ul"></i>
-                            <span>All Payments</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a class="sidebar-dropdown-link" href="/payments/new">
-                            <i class="bi bi-plus-circle"></i>
-                            <span>New Payment</span>
-                        </a>
-                    </li>
-                </ul>
-            </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="/expenses">
-                    <i class="bi bi-receipt"></i>
-                    <span>Expenses</span>
-                </a>
-            </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="/expenses/tracking">
-                    <i class="bi bi-graph-up"></i>
-                    <span>Expense Tracking</span>
-                </a>
-            </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" data-bs-toggle="collapse" href="#settingsSubmenu" role="button" aria-expanded="false" aria-controls="settingsSubmenu">
-                    <i class="bi bi-gear"></i>
-                    <span>Settings</span>
-                </a>
-                <ul class="sidebar-dropdown collapse" id="settingsSubmenu">
-                    <li>
-                        <a class="sidebar-dropdown-link" href="/settings">
-                            <i class="bi bi-list-ul"></i>
-                            <span>All Settings</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a class="sidebar-dropdown-link" href="/settings/new">
-                            <i class="bi bi-plus-circle"></i>
-                            <span>New Setting</span>
-                        </a>
-                    </li>
-                </ul>
-            </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="/users">
-                    <i class="bi bi-people"></i>
-                    <span>Users</span>
-                </a>
-            </li>
-            <li class="sidebar-nav-item">
-                <a class="sidebar-nav-link" href="/profile">
-                    <i class="bi bi-person-circle"></i>
-                    <span>Profile</span>
-                </a>
-            </li>
-            {% endif %}
-        </ul>
-    </nav>
-
-    <!-- Main Content -->
-    <main class="main-content">
-        <div class="content-wrapper">
-            {% if request.query_params.get("error") %}
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                {{ request.query_params.get("error") }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                <div class="d-flex align-items-center justify-content-between">
+                    <a href="{% url 'profile' %}" class="text-decoration-none text-muted small d-flex align-items-center gap-1">
+                        {% if user.avatar %}
+                        <img src="{{ user.avatar.url }}" class="rounded-circle" width="24" height="24" style="object-fit:cover;">
+                        {% else %}
+                        <i class="bi bi-person-circle"></i>
+                        {% endif %}
+                        {{ user.username }}
+                    </a>
+                    <form method="post" action="{% url 'logout' %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-box-arrow-right"></i>
+                        </button>
+                    </form>
+                </div>
             </div>
             {% endif %}
-            
-            {% if request.query_params.get("success") %}
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                {{ request.query_params.get("success") }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="content-area flex-grow-1">
+            <!-- Top bar -->
+            <nav class="navbar navbar-dark bg-dark border-bottom border-secondary px-4">
+                <span class="navbar-text">
+                    {% block page_title %}Dashboard{% endblock %}
+                </span>
+                {% if user.is_authenticated %}
+                <div class="d-flex align-items-center gap-2">
+                    {% if user.is_superuser %}
+                    <span class="badge bg-danger">Admin</span>
+                    {% else %}
+                    <span class="badge bg-primary">{{ user.active_role|title }}</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </nav>
+
+            <!-- Messages -->
+            {% if messages %}
+            <div class="px-4 pt-3">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
             </div>
             {% endif %}
 
-            {% block content %}{% endblock %}
-        </div>
-    </main>
+            <!-- Page content -->
+            <div class="p-4">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
 
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
-    <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
-    <script>
-        // Sidebar toggle functionality
-        document.getElementById('sidebarToggle')?.addEventListener('click', function() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('collapsed');
-            const icon = this.querySelector('i');
-            icon.classList.toggle('bi-chevron-left');
-            icon.classList.toggle('bi-chevron-right');
-        });
-
-        // Mobile menu toggle
-        document.getElementById('mobileMenuToggle')?.addEventListener('click', function() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('show');
-        });
-
-        // Close mobile menu when clicking outside
-        document.addEventListener('click', function(event) {
-            const sidebar = document.getElementById('sidebar');
-            const mobileToggle = document.getElementById('mobileMenuToggle');
-            
-            if (window.innerWidth <= 768 && 
-                sidebar.classList.contains('show') && 
-                !sidebar.contains(event.target) && 
-                !mobileToggle.contains(event.target)) {
-                sidebar.classList.remove('show');
-            }
-        });
-
-        // Set active menu item based on current URL
-        document.addEventListener('DOMContentLoaded', function() {
-            const currentPath = window.location.pathname;
-            const navLinks = document.querySelectorAll('.sidebar-nav-link, .sidebar-dropdown-link');
-            
-            navLinks.forEach(link => {
-                const href = link.getAttribute('href');
-                if (href && (currentPath === href || currentPath.startsWith(href + '/'))) {
-                    link.classList.add('active');
-                    
-                    // Expand parent dropdown if this is a submenu item
-                    const dropdown = link.closest('.sidebar-dropdown');
-                    if (dropdown) {
-                        dropdown.classList.add('show');
-                        const parentLink = dropdown.previousElementSibling;
-                        if (parentLink) {
-                            parentLink.setAttribute('aria-expanded', 'true');
-                        }
-                    }
-                }
-            });
-        });
-    </script>
-    {% block scripts %}
-    <script>
-    $(document).ready(function() {
-        // Initialize DataTables on all tables with class 'data-table'
-        $('table.data-table').DataTable({
-            pageLength: 25,
-            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-            order: [],
-            columnDefs: [
-                { orderable: false, targets: -1 } // Disable sorting on last column (Actions)
-            ]
-        });
-    });
-    </script>
-    {% endblock %}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

@@ -1,45 +1,39 @@
 {% extends "base.html" %}
+{% block title %}{{ worker.worker_code|default:"New Worker" }}{% endblock %}
+{% block page_title %}{{ worker|yesno:"Edit,New" }} Worker{% endblock %}
 
 {% block content %}
-<h1 class="mb-4">{% if worker %}Edit{% else %}New{% endif %} Worker</h1>
-
-{% if error %}
-<div class="alert alert-danger">{{ error }}</div>
-{% endif %}
-
-<form method="POST" action="{% if worker %}/workers/{{ worker.id }}/edit{% else %}/workers/new{% endif %}">
-    <div class="mb-3">
-        <label for="worker_code" class="form-label">Worker Code</label>
-        <input type="text" class="form-control" id="worker_code" name="worker_code" value="{{ worker.worker_code if worker else (suggested_code if suggested_code else '') }}" placeholder="{{ suggested_code if suggested_code else 'Auto-generated if left empty' }}">
-        <small class="form-text text-muted">Leave empty to auto-generate ({{ suggested_code if suggested_code else 'next available' }})</small>
-    </div>
-    
-    <div class="mb-3">
-        <label for="name" class="form-label">Name *</label>
-        <input type="text" class="form-control" id="name" name="name" value="{{ worker.name if worker else '' }}" required>
-    </div>
-    
-    <div class="mb-3">
-        <label for="contact" class="form-label">Contact</label>
-        <input type="text" class="form-control" id="contact" name="contact" value="{{ worker.contact if worker else '' }}">
-    </div>
-    
-    <div class="mb-3">
-        <label for="notes" class="form-label">Notes</label>
-        <textarea class="form-control" id="notes" name="notes" rows="3">{{ worker.notes if worker else '' }}</textarea>
-    </div>
-    
-    <div class="mb-3">
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="is_owner" name="is_owner" value="1" {% if worker and worker.is_owner %}checked{% endif %}>
-            <label class="form-check-label" for="is_owner">
-                Mark as Owner (Me)
-            </label>
-            <small class="form-text text-muted d-block">This worker's earnings will be tracked separately in the expense dashboard</small>
-        </div>
-    </div>
-    
-    <button type="submit" class="btn btn-primary">Save</button>
-    <a href="{% if worker %}/workers/{{ worker.id }}{% else %}/workers{% endif %}" class="btn btn-secondary">Cancel</a>
-</form>
+<div class="row"><div class="col-lg-8">
+    <div class="card"><div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="form-label">Name <span class="text-danger">*</span></label>
+                <input type="text" name="name" class="form-control" value="{{ worker.name|default:'' }}" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Contact</label>
+                <input type="text" name="contact" class="form-control" value="{{ worker.contact|default:'' }}" placeholder="Email, phone, etc.">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Notes</label>
+                <textarea name="notes" class="form-control" rows="3">{{ worker.notes|default:'' }}</textarea>
+            </div>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" name="is_owner" id="isOwner"
+                       {% if worker.is_owner %}checked{% endif %}>
+                <label class="form-check-label" for="isOwner">This is the agency owner's worker entity</label>
+                <small class="form-text text-muted d-block">Owner allocations count toward owner earnings in profit calculations</small>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> {{ worker|yesno:"Update,Create" }} Worker</button>
+                {% if worker %}
+                <a href="{% url 'worker_detail' worker.pk %}" class="btn btn-secondary">Cancel</a>
+                {% else %}
+                <a href="{% url 'worker_list' %}" class="btn btn-secondary">Cancel</a>
+                {% endif %}
+            </div>
+        </form>
+    </div></div>
+</div></div>
 {% endblock %}

@@ -1,868 +1,231 @@
 {% extends "base.html" %}
+{% block title %}{{ job.job_code }} - {{ job.title }}{% endblock %}
+{% block page_title %}{{ job.job_code }} - {{ job.title }}{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>{{ job.job_code }} - {{ job.title }}</h1>
+    <div>
+        <span class="badge bg-{% if job.status == 'active' %}primary{% elif job.status == 'completed' %}success{% elif job.status == 'draft' %}secondary{% else %}dark{% endif %} me-2">
+            {{ job.get_status_display }}
+        </span>
+        <span class="badge bg-outline-secondary">{{ job.get_job_type_display }}</span>
+        {% if job.source %}<span class="badge bg-info">{{ job.get_source_display }}</span>{% endif %}
+        {% if job.is_finalized %}<span class="badge bg-warning text-dark">Finalized</span>{% endif %}
+    </div>
     <div class="d-flex gap-2">
-        {% if not job.is_finalized %}
-        <a href="/jobs/{{ job.id }}/edit" class="btn btn-secondary" style="min-width: 100px;">Edit</a>
+        {% if job.job_post_url %}
+        <a href="{{ job.job_post_url }}" target="_blank" class="btn btn-sm btn-outline-success"><i class="bi bi-box-arrow-up-right"></i> Open Job</a>
         {% endif %}
-        <form method="POST" action="/jobs/{{ job.id }}/archive" class="d-inline">
-            <button type="submit" class="btn btn-danger" style="min-width: 100px;" onclick="return confirm('Archive this job?')">Archive</button>
+        {% if not job.is_finalized %}
+        <a href="{% url 'job_edit' job.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i> Edit</a>
+        <form method="POST" action="{% url 'job_finalize' job.pk %}" class="d-inline">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-outline-warning" onclick="return confirm('Finalize this job? Calculations will be locked.')"><i class="bi bi-lock"></i> Finalize</button>
         </form>
+        {% else %}
+        <form method="POST" action="{% url 'job_unfinalize' job.pk %}" class="d-inline">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-outline-info" onclick="return confirm('Unfinalize? This will remove the snapshot and re-enable edits.')"><i class="bi bi-unlock"></i> Unfinalize</button>
+        </form>
+        {% endif %}
+        {% if job.status != 'archived' %}
+        <form method="POST" action="{% url 'job_archive' job.pk %}" class="d-inline">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Archive this job?')"><i class="bi bi-archive"></i> Archive</button>
+        </form>
+        {% endif %}
+        <a href="{% url 'job_list' %}" class="btn btn-sm btn-secondary"><i class="bi bi-arrow-left"></i> Back</a>
     </div>
 </div>
 
-<div class="row mb-4">
+<!-- Financial Summary Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card"><div class="card-body">
+            <small class="text-muted">Total Received</small>
+            <h4 class="text-success">${{ totals.total_received|floatformat:2 }}</h4>
+        </div></div>
+    </div>
+    <div class="col-md-3">
+        <div class="card"><div class="card-body">
+            <small class="text-muted">Connect Deduction</small>
+            <h4 class="text-danger">${{ totals.connect_deduction|floatformat:2 }}</h4>
+        </div></div>
+    </div>
+    <div class="col-md-3">
+        <div class="card"><div class="card-body">
+            <small class="text-muted">Platform Fee</small>
+            <h4 class="text-danger">${{ totals.platform_fee|floatformat:2 }}</h4>
+        </div></div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-primary bg-opacity-10"><div class="card-body">
+            <small class="text-muted">Net Distributable</small>
+            <h4 class="text-primary">${{ totals.net_distributable|floatformat:2 }}</h4>
+        </div></div>
+    </div>
+</div>
+
+<!-- Info -->
+<div class="row g-3 mb-4">
     <div class="col-md-6">
         <div class="card">
+            <div class="card-header"><h6 class="mb-0">Details</h6></div>
             <div class="card-body">
-                <h5 class="card-title">Job Information</h5>
-                {% if job.source %}
-                <p><strong>Source:</strong> <span class="badge bg-primary">{{ job.source.value|title }}</span></p>
-                {% endif %}
-                <p><strong>Client:</strong> 
-                    {% if job.client %}
-                        <a href="/clients/{{ job.client.id }}">{{ job.client.name }}</a>
-                        {% if job.client.company_name and job.client.company_name != job.client.name %}
-                            <small class="text-muted">({{ job.client.company_name }})</small>
-                        {% endif %}
-                    {% elif job.client_name %}
-                        {{ job.client_name }} <small class="text-muted">(legacy)</small>
-                    {% else %}
-                        -
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Contract Value</dt>
+                    <dd class="col-sm-7">${{ job.contract_value|floatformat:2 }}</dd>
+                    <dt class="col-sm-5">Client</dt>
+                    <dd class="col-sm-7">{% if job.client %}<a href="{% url 'client_detail' job.client.pk %}">{{ job.client.name }}</a>{% else %}-{% endif %}</dd>
+                    <dt class="col-sm-5">Middleman</dt>
+                    <dd class="col-sm-7">{% if job.middleman %}<a href="{% url 'middleman_detail' job.middleman.pk %}">{{ job.middleman.name }}</a>{% else %}-{% endif %}</dd>
+                    <dt class="col-sm-5">Commission</dt>
+                    <dd class="col-sm-7">{{ job.commission_value }} ({{ job.get_commission_type_display }})</dd>
+                    <dt class="col-sm-5">Settings Version</dt>
+                    <dd class="col-sm-7">{% if job.settings_version %}<a href="{% url 'settings_detail' job.settings_version.pk %}">{{ job.settings_version.name }}</a>{% else %}-{% endif %}</dd>
+                    {% if job.connects_used %}
+                    <dt class="col-sm-5">Connects Used</dt>
+                    <dd class="col-sm-7">{{ job.connects_used }}</dd>
                     {% endif %}
-                </p>
-                <p><strong>Type:</strong> <span class="badge bg-info">{{ job.job_type.value }}</span></p>
-                <p><strong>Status:</strong> <span class="badge bg-secondary">{{ job.status.value }}</span></p>
-                {% if job.is_finalized %}
-                <p><strong>Status:</strong> <span class="badge bg-warning">Finalized</span></p>
-                {% endif %}
-                <p><strong>Settings Version:</strong> {{ job.settings_version.name }}</p>
-                {% if job.connects_used %}
-                <p><strong>Connects Used:</strong> {{ job.connects_used }}</p>
-                {% endif %}
-                <div class="d-flex gap-2 mt-2">
-                    <a href="{{ job.job_post_url }}" target="_blank" class="btn btn-primary btn-sm">
-                        <i class="bi bi-box-arrow-up-right"></i> 
-                        {% if job.source and job.source.value == "upwork" %}
-                            Open in Upwork
-                        {% elif job.source and job.source.value == "freelancer" %}
-                            Open in Freelancer
-                        {% elif job.source and job.source.value == "linkedin" %}
-                            Open in LinkedIn
-                        {% elif job.source and job.source.value == "fiverr" %}
-                            Open in Fiverr
-                        {% else %}
-                            Open Job Post
-                        {% endif %}
-                    </a>
-                    {% if job.upwork_contract_id %}
-                    <a href="https://www.upwork.com/nx/wm/workroom/{{ job.upwork_contract_id }}/overview" target="_blank" class="btn btn-secondary btn-sm">
-                        <i class="bi bi-box-arrow-up-right"></i> Open Contract
-                    </a>
-                    {% endif %}
-                </div>
+                    <dt class="col-sm-5">Dates</dt>
+                    <dd class="col-sm-7">{{ job.start_date|date:"M d, Y"|default:"-" }} — {{ job.end_date|date:"M d, Y"|default:"ongoing" }}</dd>
+                </dl>
             </div>
         </div>
     </div>
     <div class="col-md-6">
         <div class="card">
+            <div class="card-header"><h6 class="mb-0">Upwork IDs</h6></div>
             <div class="card-body">
-                <h5 class="card-title">Company Details</h5>
-                {% if job.company_name %}
-                <p><strong>Company:</strong> {{ job.company_name }}</p>
-                {% endif %}
-                {% if job.company_website %}
-                <p><strong>Website:</strong> <a href="{{ job.company_website }}" target="_blank">{{ job.company_website }}</a></p>
-                {% endif %}
-                {% if job.company_email %}
-                <p><strong>Email:</strong> <a href="mailto:{{ job.company_email }}">{{ job.company_email }}</a></p>
-                {% endif %}
-                {% if job.company_phone %}
-                <p><strong>Phone:</strong> <a href="tel:{{ job.company_phone }}">{{ job.company_phone }}</a></p>
-                {% endif %}
-                {% if job.company_address %}
-                <p><strong>Address:</strong> {{ job.company_address }}</p>
-                {% endif %}
-                {% if job.client_notes %}
-                <p><strong>Notes:</strong> {{ job.client_notes }}</p>
-                {% endif %}
-                {% if not job.company_name and not job.company_website and not job.company_email and not job.company_phone and not job.company_address and not job.client_notes %}
-                <p class="text-muted">No company details provided.</p>
-                {% endif %}
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Job ID</dt>
+                    <dd class="col-sm-7">{{ job.upwork_job_id|default:"-" }}</dd>
+                    <dt class="col-sm-5">Contract ID</dt>
+                    <dd class="col-sm-7">{{ job.upwork_contract_id|default:"-" }}</dd>
+                    <dt class="col-sm-5">Offer ID</dt>
+                    <dd class="col-sm-7">{{ job.upwork_offer_id|default:"-" }}</dd>
+                </dl>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Job Description Section -->
 {% if job.description %}
-<div class="row mb-4">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Job Description</h5>
-                <div class="job-description" style="max-height: 500px; overflow-y: auto;">
-                    {{ job.description|safe }}
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="card mb-4">
+    <div class="card-header"><h6 class="mb-0">Description</h6></div>
+    <div class="card-body">{{ job.description|linebreaksbr }}</div>
 </div>
 {% endif %}
 
-<!-- Cover Letter Section (Collapsible) -->
-{% if job.cover_letter %}
-<div class="row mb-4">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <button class="btn btn-link text-decoration-none text-dark p-0" type="button" data-bs-toggle="collapse" data-bs-target="#coverLetterCollapse" aria-expanded="false" aria-controls="coverLetterCollapse">
-                        Cover Letter <i class="bi bi-chevron-down"></i>
-                    </button>
-                </h5>
-            </div>
-            <div class="collapse" id="coverLetterCollapse">
-                <div class="card-body">
-                    <div class="cover-letter" style="max-height: 500px; overflow-y: auto;">
-                        {{ job.cover_letter|safe }}
-                    </div>
-                </div>
-            </div>
-        </div>
+<!-- Receipts -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">Receipts</h6>
+        {% if not job.is_finalized %}
+        <a href="{% url 'receipt_create' job.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus"></i> Add Receipt</a>
+        {% endif %}
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead><tr><th>Date</th><th>Amount</th><th>Source</th><th>Transaction ID</th><th>Notes</th>{% if not job.is_finalized %}<th>Actions</th>{% endif %}</tr></thead>
+            <tbody>
+                {% for r in receipts %}
+                <tr>
+                    <td>{{ r.received_date|date:"M d, Y" }}</td>
+                    <td>${{ r.amount_received|floatformat:2 }}</td>
+                    <td>{{ r.get_source_display }}</td>
+                    <td>{{ r.upwork_transaction_id|default:"-" }}</td>
+                    <td>{{ r.notes|default:"-"|truncatewords:10 }}</td>
+                    {% if not job.is_finalized %}
+                    <td>
+                        <a href="{% url 'receipt_edit' r.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+                        <form method="POST" action="{% url 'receipt_delete' r.pk %}" class="d-inline"
+                              onsubmit="return confirm('Delete this receipt and its distributions?')">
+                            {% csrf_token %}
+                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                        </form>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% empty %}
+                <tr><td colspan="{% if job.is_finalized %}5{% else %}6{% endif %}" class="text-center text-muted py-3">No receipts recorded.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
-{% endif %}
 
-<!-- Upwork Identifiers (if applicable) -->
-{% if job.upwork_job_id or job.upwork_contract_id or job.upwork_offer_id %}
-<div class="row mb-4">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Upwork Identifiers</h5>
-                <div class="row">
-                    {% if job.upwork_job_id %}
-                    <div class="col-md-4">
-                        <p><strong>Job ID:</strong> {{ job.upwork_job_id }}</p>
-                    </div>
-                    {% endif %}
-                    {% if job.upwork_contract_id %}
-                    <div class="col-md-4">
-                        <p><strong>Contract ID:</strong> {{ job.upwork_contract_id }}</p>
-                    </div>
-                    {% endif %}
-                    {% if job.upwork_offer_id %}
-                    <div class="col-md-4">
-                        <p><strong>Offer ID:</strong> {{ job.upwork_offer_id }}</p>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
+<!-- Allocations -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">Worker Allocations</h6>
+        {% if not job.is_finalized %}
+        <a href="{% url 'allocation_create' job.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus"></i> Add Allocation</a>
+        {% endif %}
     </div>
-</div>
-{% endif %}
-
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Total Received</h5>
-                <h3 class="text-success">${{ "%.2f"|format(totals.total_received) }}</h3>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Connect Deduction</h5>
-                <h3 class="text-warning">${{ "%.2f"|format(totals.connect_deduction) }}</h3>
-                {% if connects_used %}
-                <small class="text-muted">{{ connects_used }} connects × ${{ "%.2f"|format(connect_cost_per_unit) }}</small>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead><tr><th>Worker</th><th>Label</th><th>Type</th><th>Share</th><th>Earned</th>{% if not job.is_finalized %}<th>Actions</th>{% endif %}</tr></thead>
+            <tbody>
+                {% for item in alloc_display %}
+                {% if item.alloc %}
+                <tr>
+                    <td>{% if item.alloc.worker %}<a href="{% url 'worker_detail' item.alloc.worker.pk %}">{{ item.alloc.worker.name }}</a>{% else %}<em>Owner</em>{% endif %}</td>
+                    <td>{{ item.alloc.label|default:"-" }}</td>
+                    <td>{{ item.alloc.get_share_type_display }}</td>
+                    <td>{% if item.alloc.share_type == 'percent' %}{{ item.alloc.share_value|floatformat:2 }}%{% else %}${{ item.alloc.share_value|floatformat:2 }}{% endif %}</td>
+                    <td class="text-success">${{ item.earned|floatformat:2 }}</td>
+                    {% if not job.is_finalized %}
+                    <td>
+                        <a href="{% url 'allocation_edit' item.alloc.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+                        <form method="POST" action="{% url 'allocation_delete' item.alloc.pk %}" class="d-inline"
+                              onsubmit="return confirm('Delete this allocation?')">
+                            {% csrf_token %}
+                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                        </form>
+                    </td>
+                    {% endif %}
+                </tr>
                 {% endif %}
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Platform Fee</h5>
-                <h3 class="text-info">${{ "%.2f"|format(totals.platform_fee) }}</h3>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Net Distributable</h5>
-                <h3 class="text-primary">${{ "%.2f"|format(totals.net_distributable) }}</h3>
-            </div>
-        </div>
+                {% empty %}
+                <tr><td colspan="{% if job.is_finalized %}5{% else %}6{% endif %}" class="text-center text-muted py-3">No allocations.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 
-<h3 class="mt-4">Receipts</h3>
-{% if not job.is_finalized %}
-<div class="mb-3">
-    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addReceiptModal">Add Receipt</button>
-</div>
-{% endif %}
-<div class="table-responsive">
-    <table class="table data-table" id="receiptsTable">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Amount</th>
-                <th>Source</th>
-                <th>Transaction ID</th>
-                <th>Notes</th>
-                {% if not job.is_finalized %}
-                <th>Actions</th>
-                {% endif %}
-            </tr>
-        </thead>
-        <tbody>
-            {% for receipt in receipts %}
-            <tr>
-                <td>{{ receipt.received_date }}</td>
-                <td>${{ "%.2f"|format(receipt.amount_received) }}</td>
-                <td>{{ receipt.source.value }}</td>
-                <td>{{ receipt.upwork_transaction_id or "-" }}</td>
-                <td>{{ receipt.notes or "-" }}</td>
-                {% if not job.is_finalized %}
-                <td>
-                    <a href="/receipts/{{ receipt.id }}/edit" class="btn btn-sm btn-secondary">Edit</a>
-                    <form method="POST" action="/receipts/{{ receipt.id }}/delete" class="d-inline" onsubmit="return confirm('Delete this receipt?')">
-                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                    </form>
-                </td>
-                {% endif %}
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-<h3 class="mt-4">Allocations</h3>
-{% if not job.is_finalized %}
-<div class="mb-3">
-    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addAllocationModal">Add Allocation</button>
-</div>
-{% endif %}
-<div class="table-responsive">
-    <table class="table data-table" id="allocationsTable">
-        <thead>
-            <tr>
-                <th>Worker</th>
-                <th>Label</th>
-                <th>Role</th>
-                <th>Share Type</th>
-                <th>Share Value</th>
-                <th>Earned</th>
-                {% if not job.is_finalized %}
-                <th>Actions</th>
-                {% endif %}
-            </tr>
-        </thead>
-        <tbody>
-            {% for result in allocation_results %}
-            <tr>
-                <td>
-                    {% if result.allocation.worker %}
-                    <a href="/workers/{{ result.allocation.worker.id }}">{{ result.allocation.worker.name }}</a>
-                    {% else %}
-                    -
-                    {% endif %}
-                </td>
-                <td>{{ result.allocation.label }}</td>
-                <td>{{ result.allocation.role or "-" }}</td>
-                <td>{{ result.allocation.share_type.value }}</td>
-                <td>
-                    {% if result.allocation.share_type.value == "percent" %}
-                    {{ "%.1f"|format(result.allocation.share_value * 100) }}%
-                    {% else %}
-                    ${{ "%.2f"|format(result.allocation.share_value) }}
-                    {% endif %}
-                </td>
-                <td><strong>${{ "%.2f"|format(result.earned) }}</strong></td>
-                {% if not job.is_finalized %}
-                <td>
-                    <button class="btn btn-sm btn-secondary" onclick="editAllocation({{ result.allocation.id }})">Edit</button>
-                    <form method="POST" action="/allocations/{{ result.allocation.id }}/delete" class="d-inline" onsubmit="return confirm('Delete this allocation?')">
-                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                    </form>
-                </td>
-                {% endif %}
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-<h3 class="mt-4">Payments</h3>
-<div class="mb-3">
-    <a href="/payments/new?job_id={{ job.id }}" class="btn btn-primary btn-sm">Add Payment</a>
-</div>
-<div class="table-responsive">
-    <table class="table data-table" id="paymentsTable">
-        <thead>
-            <tr>
-                <th>Payment Code</th>
-                <th>Worker</th>
-                <th>Date</th>
-                <th>Amount</th>
-                <th>Method</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Reference</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for payment in payments %}
-            <tr>
-                <td>{{ payment.payment_code }}</td>
-                <td>
-                    <a href="/workers/{{ payment.worker.id }}">{{ payment.worker.name }}</a>
-                    {% if payment.worker.id not in current_worker_ids %}
-                    <span class="badge bg-secondary ms-1" title="Worker no longer allocated to this job">Inactive</span>
-                    {% endif %}
-                </td>
-                <td>{{ payment.paid_date }}</td>
-                <td>${{ "%.2f"|format(payment.amount_paid) }}</td>
-                <td>{{ payment.method or "-" }}</td>
-                <td>
-                    {% if payment.is_auto_generated or payment.method == "Auto-generated" %}
-                    <span class="badge bg-info">Auto</span>
-                    {% else %}
-                    <span class="badge bg-secondary">Manual</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if payment.is_paid %}
-                    <span class="badge bg-success">Paid</span>
-                    {% else %}
-                    <span class="badge bg-warning">Pending</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if payment.reference %}
-                    <small class="text-muted">{{ payment.reference }}</small>
-                    {% else %}
-                    -
-                    {% endif %}
-                </td>
-                <td>
-                    {% if not payment.is_paid %}
-                    <form method="POST" action="/payments/{{ payment.id }}/mark-paid" class="d-inline">
-                        <button type="submit" class="btn btn-sm btn-success" title="Mark as paid">✓</button>
-                    </form>
-                    {% else %}
-                    <form method="POST" action="/payments/{{ payment.id }}/mark-unpaid" class="d-inline">
-                        <button type="submit" class="btn btn-sm btn-warning" title="Mark as unpaid">↺</button>
-                    </form>
-                    {% endif %}
-                    <a href="/payments/{{ payment.id }}/edit" class="btn btn-sm btn-secondary">Edit</a>
-                    <form method="POST" action="/payments/{{ payment.id }}/delete" class="d-inline" onsubmit="return confirm('Delete this payment?')">
-                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-{% if not job.is_finalized %}
-<div class="mt-4">
-    <form method="POST" action="/jobs/{{ job.id }}/finalize" onsubmit="return confirm('Finalize this job? This will create a snapshot and prevent further edits.')">
-        <button type="submit" class="btn btn-warning">Finalize Job</button>
-    </form>
-</div>
-{% else %}
-<div class="mt-4">
-    <form method="POST" action="/jobs/{{ job.id }}/unfinalize" onsubmit="return confirm('Unfinalize this job? This will allow edits but remove the snapshot.')">
-        <button type="submit" class="btn btn-warning">Unfinalize Job</button>
-    </form>
-</div>
-{% endif %}
-
-<!-- Add Receipt Modal -->
-<div class="modal fade" id="addReceiptModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Add Receipt</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="/jobs/{{ job.id }}/receipts/new">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="received_date" class="form-label">Received Date *</label>
-                        <input type="date" class="form-control" id="received_date" name="received_date" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="amount_received" class="form-label">Amount *</label>
-                        <input type="number" step="0.01" class="form-control" id="amount_received" name="amount_received" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="source" class="form-label">Source *</label>
-                        <select class="form-select" id="source" name="source" required>
-                            <option value="milestone">Milestone</option>
-                            <option value="weekly">Weekly</option>
-                            <option value="bonus">Bonus</option>
-                            <option value="manual">Manual</option>
-                        </select>
-                    </div>
-                    
-                    <!-- Allocation Mode Selection -->
-                    <div class="mb-3">
-                        <label class="form-label">Allocation Method</label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="allocation_mode" id="modal_mode_predefined" value="predefined" checked>
-                            <label class="form-check-label" for="modal_mode_predefined">
-                                Use Predefined Allocations (from Job)
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="allocation_mode" id="modal_mode_custom" value="custom">
-                            <label class="form-check-label" for="modal_mode_custom">
-                                Define Custom Allocation
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <!-- Predefined Allocation Selection -->
-                    <div id="modal_predefined_allocations_section">
-                        {% if allocations %}
-                        <div class="mb-3">
-                            <label class="form-label">Allocate to Workers</label>
-                            <div class="form-text mb-2">Select which workers should receive money from this receipt. If none selected, all workers will receive based on their allocation percentages.</div>
-                            <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
-                                {% for alloc in allocations %}
-                                    {% if alloc.worker_id %}
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" 
-                                               name="selected_allocations" 
-                                               value="{{ alloc.id }}" 
-                                               id="modal_alloc_{{ alloc.id }}"
-                                               checked>
-                                        <label class="form-check-label" for="modal_alloc_{{ alloc.id }}">
-                                            <strong>{{ alloc.label }}</strong>
-                                            {% if alloc.worker %}
-                                                ({{ alloc.worker.name }} - {{ alloc.worker.worker_code }})
-                                            {% endif %}
-                                            - 
-                                            {% if alloc.share_type == "percent" %}
-                                                {{ (alloc.share_value * 100)|round(1) }}%
-                                            {% else %}
-                                                ${{ "%.2f"|format(alloc.share_value) }}
-                                            {% endif %}
-                                        </label>
-                                    </div>
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
-                        </div>
+<!-- Payments -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">Payments</h6>
+        <a href="{% url 'payment_create' %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus"></i> Add Payment</a>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead><tr><th>Code</th><th>Worker</th><th>Amount</th><th>Date</th><th>Method</th><th>Status</th></tr></thead>
+            <tbody>
+                {% for p in payments %}
+                <tr>
+                    <td>{{ p.payment_code }}</td>
+                    <td><a href="{% url 'worker_detail' p.worker.pk %}">{{ p.worker.name }}</a></td>
+                    <td>${{ p.amount_paid|floatformat:2 }}</td>
+                    <td>{{ p.paid_date|date:"M d, Y" }}</td>
+                    <td>{{ p.method|default:"-" }}</td>
+                    <td>
+                        {% if p.is_paid %}
+                        <span class="badge bg-success">Paid</span>
+                        {% else %}
+                        <span class="badge bg-warning text-dark">Pending</span>
                         {% endif %}
-                    </div>
-                    
-                    <!-- Custom Allocation Section -->
-                    <div id="modal_custom_allocations_section" style="display: none;">
-                        <div class="mb-3">
-                            <label class="form-label">Custom Allocations</label>
-                            <div class="form-text mb-2">Define how this receipt should be allocated to workers. Total must equal 100% or match the receipt amount.</div>
-                            <div id="modal_custom_allocations_container">
-                                <!-- Custom allocations will be added here dynamically -->
-                            </div>
-                            <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="modal_add_custom_allocation">
-                                <i class="bi bi-plus"></i> Add Worker
-                            </button>
-                            <div class="mt-2">
-                                <strong>Total: <span id="modal_custom_total_percent">0%</span> / <span id="modal_custom_total_amount">$0.00</span></strong>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="upwork_transaction_id" class="form-label">Upwork Transaction ID</label>
-                        <input type="text" class="form-control" id="upwork_transaction_id" name="upwork_transaction_id">
-                    </div>
-                    <div class="mb-3">
-                        <label for="notes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="notes" name="notes" rows="2"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary" id="submitReceiptBtn">Add Receipt</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-{% block scripts %}
-<script>
-// Workers data from backend
-const workers = {{ workers_json|tojson }};
-let modalCustomAllocationIndex = 0;
-
-// Initialize custom allocations when modal opens
-document.getElementById('addReceiptModal').addEventListener('show.bs.modal', function() {
-    // Reset custom allocations
-    document.getElementById('modal_custom_allocations_container').innerHTML = '';
-    modalCustomAllocationIndex = 0;
-    // Don't add initial row - only add when switching to custom mode
-    
-    // Reset to predefined mode
-    document.getElementById('modal_mode_predefined').checked = true;
-    document.getElementById('modal_predefined_allocations_section').style.display = 'block';
-    document.getElementById('modal_custom_allocations_section').style.display = 'none';
-});
-
-// Toggle between predefined and custom allocations in modal
-document.querySelectorAll('input[name="allocation_mode"]').forEach(radio => {
-    radio.addEventListener('change', function() {
-        if (this.value === 'predefined') {
-            document.getElementById('modal_predefined_allocations_section').style.display = 'block';
-            document.getElementById('modal_custom_allocations_section').style.display = 'none';
-            
-            // Remove required attributes and disable hidden custom allocation inputs
-            const customInputs = document.querySelectorAll('#modal_custom_allocations_container input[required], #modal_custom_allocations_container select[required]');
-            customInputs.forEach(input => {
-                input.removeAttribute('required');
-                input.disabled = true; // Disable so they don't interfere with form submission
-            });
-        } else {
-            document.getElementById('modal_predefined_allocations_section').style.display = 'none';
-            document.getElementById('modal_custom_allocations_section').style.display = 'block';
-            
-            // Re-enable and add required attributes back to custom allocation inputs
-            const customInputs = document.querySelectorAll('#modal_custom_allocations_container input, #modal_custom_allocations_container select');
-            customInputs.forEach(input => {
-                if (input.name && input.name.includes('custom_allocations')) {
-                    input.disabled = false;
-                    if (input.name.includes('[worker_id]') || input.name.includes('[share_value]')) {
-                        input.setAttribute('required', 'required');
-                    }
-                }
-            });
-            
-            // Add initial row if container is empty
-            if (document.querySelectorAll('#modal_custom_allocations_container .custom-allocation-row').length === 0) {
-                addModalCustomAllocationRow();
-            }
-        }
-    });
-});
-
-// Add custom allocation row in modal
-document.getElementById('modal_add_custom_allocation').addEventListener('click', function() {
-    addModalCustomAllocationRow();
-});
-
-function addModalCustomAllocationRow(workerId = null, shareType = 'percent', shareValue = '') {
-    const container = document.getElementById('modal_custom_allocations_container');
-    const index = modalCustomAllocationIndex++;
-    
-    // Check if custom allocations section is visible
-    const customSection = document.getElementById('modal_custom_allocations_section');
-    const isVisible = customSection && customSection.style.display !== 'none';
-    const requiredAttr = isVisible ? 'required' : '';
-    const disabledAttr = isVisible ? '' : 'disabled';
-    
-    const row = document.createElement('div');
-    row.className = 'border rounded p-2 mb-2 custom-allocation-row';
-    row.dataset.index = index;
-    
-    row.innerHTML = `
-        <div class="row g-2">
-            <div class="col-md-4">
-                <select class="form-select form-select-sm worker-select" name="custom_allocations[${index}][worker_id]" ${requiredAttr} ${disabledAttr}>
-                    <option value="">Select Worker</option>
-                    ${workers.map(w => `<option value="${w.id}" ${workerId == w.id ? 'selected' : ''}>${w.name} (${w.worker_code})</option>`).join('')}
-                </select>
-            </div>
-            <div class="col-md-3">
-                <select class="form-select form-select-sm share-type-select" name="custom_allocations[${index}][share_type]" ${disabledAttr}>
-                    <option value="percent" ${shareType === 'percent' ? 'selected' : ''}>Percentage</option>
-                    <option value="fixed_amount" ${shareType === 'fixed_amount' ? 'selected' : ''}>Fixed Amount</option>
-                </select>
-            </div>
-            <div class="col-md-4">
-                <input type="number" step="0.01" class="form-control form-control-sm share-value-input" 
-                       name="custom_allocations[${index}][share_value]" 
-                       value="${shareValue}" 
-                       placeholder="${shareType === 'percent' ? '0-100' : '0.00'}" 
-                       ${requiredAttr} ${disabledAttr}>
-            </div>
-            <div class="col-md-1">
-                <button type="button" class="btn btn-sm btn-danger remove-allocation" onclick="removeModalCustomAllocationRow(this)">
-                    <i class="bi bi-x"></i>
-                </button>
-            </div>
-        </div>
-    `;
-    
-    container.appendChild(row);
-    
-    // Add event listeners for real-time calculation
-    row.querySelector('.share-type-select').addEventListener('change', function() {
-        const placeholder = this.value === 'percent' ? '0-100' : '0.00';
-        row.querySelector('.share-value-input').placeholder = placeholder;
-        updateModalCustomTotals();
-    });
-    row.querySelector('.share-value-input').addEventListener('input', updateModalCustomTotals);
-    
-    updateModalCustomTotals();
-}
-
-function removeModalCustomAllocationRow(button) {
-    button.closest('.custom-allocation-row').remove();
-    updateModalCustomTotals();
-}
-
-function updateModalCustomTotals() {
-    const rows = document.querySelectorAll('#modal_custom_allocations_container .custom-allocation-row');
-    let totalPercent = 0;
-    let totalAmount = 0;
-    const amountInput = document.getElementById('amount_received');
-    const receiptAmount = parseFloat(amountInput.value) || 0;
-    
-    rows.forEach(row => {
-        const shareType = row.querySelector('.share-type-select').value;
-        const shareValue = parseFloat(row.querySelector('.share-value-input').value) || 0;
-        
-        if (shareType === 'percent') {
-            totalPercent += shareValue;
-        } else {
-            totalAmount += shareValue;
-        }
-    });
-    
-    document.getElementById('modal_custom_total_percent').textContent = totalPercent.toFixed(1) + '%';
-    document.getElementById('modal_custom_total_amount').textContent = '$' + totalAmount.toFixed(2);
-    
-    // Highlight if totals don't match
-    const totalPercentEl = document.getElementById('modal_custom_total_percent');
-    const totalAmountEl = document.getElementById('modal_custom_total_amount');
-    
-    if (totalPercent > 100.1 || totalPercent < 99.9) {
-        totalPercentEl.style.color = 'red';
-    } else {
-        totalPercentEl.style.color = 'green';
-    }
-    
-    if (receiptAmount > 0 && (totalAmount > receiptAmount * 1.01 || totalAmount < receiptAmount * 0.99)) {
-        totalAmountEl.style.color = 'red';
-    } else if (receiptAmount > 0) {
-        totalAmountEl.style.color = 'green';
-    } else {
-        totalAmountEl.style.color = 'black';
-    }
-}
-
-// Update totals when amount changes (only if element exists)
-const amountReceivedInput = document.getElementById('amount_received');
-if (amountReceivedInput) {
-    amountReceivedInput.addEventListener('input', updateModalCustomTotals);
-}
-
-// Before form submission, convert custom allocations to JSON
-const receiptForm = document.querySelector('#addReceiptModal form');
-if (receiptForm) {
-    receiptForm.addEventListener('submit', function(e) {
-        // Don't prevent default - allow form to submit normally
-        // Only add hidden inputs if needed
-        
-        try {
-            const allocationModeRadio = document.querySelector('#addReceiptModal input[name="allocation_mode"]:checked');
-            const allocationMode = allocationModeRadio ? allocationModeRadio.value : 'predefined';
-            
-            console.log('Form submitting with allocation mode:', allocationMode);
-            
-            // Remove any existing hidden inputs first to avoid duplicates
-            const existingCustomJson = this.querySelector('input[name="custom_allocations_json"]');
-            if (existingCustomJson) existingCustomJson.remove();
-            const existingUseCustom = this.querySelector('input[name="use_custom_allocations"]');
-            if (existingUseCustom) existingUseCustom.remove();
-            
-            if (allocationMode === 'custom') {
-                const rows = document.querySelectorAll('#modal_custom_allocations_container .custom-allocation-row');
-                const customAllocations = [];
-                
-                rows.forEach(row => {
-                    const workerId = row.querySelector('.worker-select')?.value;
-                    const shareType = row.querySelector('.share-type-select')?.value;
-                    const shareValue = row.querySelector('.share-value-input')?.value;
-                    
-                    if (workerId && shareValue) {
-                        customAllocations.push({
-                            worker_id: parseInt(workerId),
-                            share_type: shareType,
-                            share_value: parseFloat(shareValue)
-                        });
-                    }
-                });
-                
-                console.log('Custom allocations:', customAllocations);
-                
-                // Add hidden input with JSON
-                const hiddenInput = document.createElement('input');
-                hiddenInput.type = 'hidden';
-                hiddenInput.name = 'custom_allocations_json';
-                hiddenInput.value = JSON.stringify(customAllocations);
-                this.appendChild(hiddenInput);
-                
-                // Add hidden input for use_custom_allocations flag
-                const flagInput = document.createElement('input');
-                flagInput.type = 'hidden';
-                flagInput.name = 'use_custom_allocations';
-                flagInput.value = 'true';
-                this.appendChild(flagInput);
-            } else {
-                // Predefined mode - add hidden input to indicate not using custom allocations
-                console.log('Using predefined allocations');
-                const flagInput = document.createElement('input');
-                flagInput.type = 'hidden';
-                flagInput.name = 'use_custom_allocations';
-                flagInput.value = 'false';
-                this.appendChild(flagInput);
-            }
-            
-            console.log('Form will submit now');
-        } catch (error) {
-            console.error('Error in form submission handler:', error);
-            // Continue with form submission even if handler fails
-        }
-        // Form will submit normally - we don't prevent default
-        return true;
-    });
-}
-
-function editAllocation(allocId) {
-    // TODO: Implement edit allocation modal
-    window.location.href = '/allocations/' + allocId + '/edit';
-}
-
-// Initialize DataTables with fixed height and scrolling
-// Wait for jQuery and DataTables to be available
-(function() {
-    let initialized = false;
-    
-    function initDataTables() {
-        // Prevent multiple initializations
-        if (initialized) return;
-        
-        // Check if jQuery and DataTables are loaded
-        if (typeof window.jQuery === 'undefined' || typeof window.jQuery.fn.DataTable === 'undefined') {
-            // jQuery or DataTables not loaded yet, try again in 100ms (max 10 attempts)
-            if (initDataTables.attempts === undefined) initDataTables.attempts = 0;
-            if (initDataTables.attempts < 10) {
-                initDataTables.attempts++;
-                setTimeout(initDataTables, 100);
-            }
-            return;
-        }
-        
-        initialized = true;
-        const $ = window.jQuery;
-        
-        // Destroy any existing DataTable instances to avoid conflicts
-        if ($.fn.DataTable.isDataTable('#receiptsTable')) {
-            $('#receiptsTable').DataTable().destroy();
-        }
-        if ($.fn.DataTable.isDataTable('#allocationsTable')) {
-            $('#allocationsTable').DataTable().destroy();
-        }
-        if ($.fn.DataTable.isDataTable('#paymentsTable')) {
-            $('#paymentsTable').DataTable().destroy();
-        }
-        
-        const tableConfig = {
-            scrollY: '400px',
-            scrollCollapse: true,
-            paging: true,
-            searching: true,
-            pageLength: 25,
-            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-            order: [],
-            columnDefs: [
-                { orderable: false, targets: -1 } // Disable sorting on last column (Actions)
-            ]
-        };
-        
-        // Initialize each table
-        $('#receiptsTable').DataTable(tableConfig);
-        $('#allocationsTable').DataTable(tableConfig);
-        $('#paymentsTable').DataTable(tableConfig);
-    }
-    
-    // Start initialization when DOM is ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initDataTables);
-    } else {
-        // DOM already ready, but wait a bit for scripts to load
-        setTimeout(initDataTables, 50);
-    }
-})();
-</script>
-{% endblock %}
-
-<!-- Add Allocation Modal -->
-<div class="modal fade" id="addAllocationModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Add Allocation</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="/jobs/{{ job.id }}/allocations/new">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="worker_id" class="form-label">Worker (leave empty for admin/you)</label>
-                        <select class="form-select" id="worker_id" name="worker_id">
-                            <option value="None">None (Admin/You)</option>
-                            {% for worker in workers %}
-                            <option value="{{ worker.id }}">{{ worker.name }} ({{ worker.worker_code }})</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="label" class="form-label">Label *</label>
-                        <input type="text" class="form-control" id="label" name="label" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="role" class="form-label">Role</label>
-                        <input type="text" class="form-control" id="role" name="role">
-                    </div>
-                    <div class="mb-3">
-                        <label for="share_type" class="form-label">Share Type *</label>
-                        <select class="form-select" id="share_type" name="share_type" required>
-                            <option value="percent">Percent</option>
-                            <option value="fixed_amount">Fixed Amount</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="share_value" class="form-label">Share Value *</label>
-                        <input type="number" step="0.01" class="form-control" id="share_value" name="share_value" required>
-                        <small class="form-text text-muted">For percent, enter as decimal (e.g., 0.5 for 50%)</small>
-                    </div>
-                    <div class="mb-3">
-                        <label for="notes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="notes" name="notes" rows="2"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Add Allocation</button>
-                </div>
-            </form>
-        </div>
+                        {% if p.is_auto_generated %}<span class="badge bg-secondary">Auto</span>{% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-3">No payments recorded.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 {% endblock %}

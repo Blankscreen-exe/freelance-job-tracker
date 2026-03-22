@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Profile{% endblock %}
+{% block page_title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Profile Picture -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header"><h6 class="mb-0">Profile Picture</h6></div>
+            <div class="card-body text-center">
+                {% if request.user.avatar %}
+                <img src="{{ request.user.avatar.url }}" class="rounded-circle mb-3" width="150" height="150" style="object-fit: cover;" alt="Avatar">
+                {% else %}
+                <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-secondary mb-3" style="width:150px;height:150px;">
+                    <i class="bi bi-person-fill text-white" style="font-size:4rem;"></i>
+                </div>
+                {% endif %}
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <input type="file" name="avatar" class="form-control" accept="image/*" required>
+                        <small class="form-text text-muted">Will be cropped and resized to 200x200px</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-upload"></i> Upload</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Info -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header"><h6 class="mb-0">Account Info</h6></div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Username</dt><dd class="col-sm-8">{{ request.user.username }}</dd>
+                    <dt class="col-sm-4">Email</dt><dd class="col-sm-8">{{ request.user.email|default:"-" }}</dd>
+                    <dt class="col-sm-4">Active Role</dt><dd class="col-sm-8"><span class="badge bg-primary">{{ request.user.get_active_role_display }}</span></dd>
+                    <dt class="col-sm-4">Roles</dt>
+                    <dd class="col-sm-8">
+                        {% for r in request.user.get_roles %}
+                        <span class="badge bg-secondary">{{ r }}</span>
+                        {% endfor %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header"><h6 class="mb-0">Change Password</h6></div>
+            <div class="card-body">
+                <form method="POST" action="{% url 'change_password' %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Current Password</label>
+                        <input type="password" name="current_password" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">New Password</label>
+                        <input type="password" name="new_password" class="form-control" required minlength="6">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Confirm New Password</label>
+                        <input type="password" name="confirm_password" class="form-control" required minlength="6">
+                    </div>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-key"></i> Change Password</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,58 +1,45 @@
 {% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block page_title %}Settings Versions{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>Settings Versions</h1>
-    <a href="/settings/new" class="btn btn-primary">New Settings Version</a>
+    <h2>Settings Versions</h2>
+    <a href="{% url 'settings_create' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> New Version</a>
 </div>
 
-{% if active_version %}
-<div class="alert alert-success">
-    <strong>Active Version:</strong> {{ active_version.name }} (created {{ active_version.created_at.strftime('%Y-%m-%d') }})
-</div>
-{% else %}
-<div class="alert alert-warning">
-    <strong>Warning:</strong> No active settings version. Please activate one or create a new one.
-</div>
-{% endif %}
+<p class="text-muted">Settings versions control calculation rules (connect fees, platform fees, etc.). Each job is linked to the settings version that was active when it was created. Changing settings only affects new jobs.</p>
 
-<table class="table table-striped data-table">
-    <thead>
-        <tr>
-            <th>Name</th>
-            <th>Active</th>
-            <th>Created</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for version in versions %}
-        <tr>
-            <td>
-                <a href="/settings/{{ version.id }}">{{ version.name }}</a>
-                {% if version.is_active %}
-                <span class="badge bg-success">Active</span>
-                {% endif %}
-            </td>
-            <td>
-                {% if version.is_active %}
-                <span class="badge bg-success">Yes</span>
-                {% else %}
-                <span class="badge bg-secondary">No</span>
-                {% endif %}
-            </td>
-            <td>{{ version.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-            <td>
-                <a href="/settings/{{ version.id }}" class="btn btn-sm btn-outline-primary">View</a>
-                {% if not version.is_active %}
-                <form method="POST" action="/settings/{{ version.id }}/activate" class="d-inline">
-                    <button type="submit" class="btn btn-sm btn-success">Activate</button>
-                </form>
-                {% endif %}
-                <a href="/settings/{{ version.id }}/clone" class="btn btn-sm btn-outline-secondary">Clone</a>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead><tr><th>Name</th><th>Status</th><th>Created</th><th>Notes</th><th>Actions</th></tr></thead>
+        <tbody>
+            {% for v in versions %}
+            <tr>
+                <td><a href="{% url 'settings_detail' v.pk %}">{{ v.name }}</a></td>
+                <td>
+                    {% if v.is_active %}
+                    <span class="badge bg-success">Active</span>
+                    {% else %}
+                    <span class="badge bg-secondary">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>{{ v.created_at|date:"M d, Y" }}</td>
+                <td>{{ v.notes|truncatewords:10|default:"-" }}</td>
+                <td>
+                    <a href="{% url 'settings_detail' v.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+                    {% if not v.is_active %}
+                    <form method="post" action="{% url 'settings_activate' v.pk %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-success"><i class="bi bi-check-circle"></i> Activate</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-4">No settings versions. <a href="{% url 'settings_create' %}">Create one</a>.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 {% endblock %}

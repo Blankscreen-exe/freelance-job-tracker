@@ -1,104 +1,43 @@
 {% extends "base.html" %}
-
-{% block title %}{% if user %}Edit User{% else %}New User{% endif %} - Upwork Tracker{% endblock %}
+{% block title %}{% if user_obj %}Edit User{% else %}New User{% endif %}{% endblock %}
+{% block page_title %}{% if user_obj %}Edit {{ user_obj.username }}{% else %}Create New User{% endif %}{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1><i class="bi bi-person-plus"></i> {% if user %}Edit User{% else %}New User{% endif %}</h1>
-        <a href="/users" class="btn btn-secondary">
-            <i class="bi bi-arrow-left"></i> Back to Users
-        </a>
-    </div>
-
-    {% if error %}
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        {{ error }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-    {% endif %}
-
-    <div class="card">
-        <div class="card-body">
-            <form method="POST" action="{% if user %}/users/{{ user.id }}/edit{% else %}/users/new{% endif %}">
-                <div class="mb-3">
-                    <label for="username" class="form-label">Username</label>
-                    <input type="text" class="form-control" id="username" name="username" 
-                           value="{{ user.username if user else '' }}" 
-                           {% if user %}readonly{% else %}required{% endif %}>
-                    {% if user %}
-                    <small class="form-text text-muted">Username cannot be changed</small>
-                    {% endif %}
-                </div>
-
-                <div class="mb-3">
-                    <label for="email" class="form-label">Email</label>
-                    <input type="email" class="form-control" id="email" name="email" 
-                           value="{{ user.email if user else '' }}" 
-                           {% if not user %}required{% endif %}>
-                    {% if user %}
-                    <small class="form-text text-muted">Email can be changed by admin</small>
-                    {% endif %}
-                </div>
-
-                {% if not user %}
-                <div class="mb-3">
-                    <label for="password" class="form-label">Password</label>
-                    <input type="password" class="form-control" id="password" name="password" required minlength="6">
-                    <small class="form-text text-muted">Minimum 6 characters</small>
-                </div>
-                {% endif %}
-
-                <div class="mb-3">
-                    <label class="form-label">Role</label>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="is_admin" name="is_admin" 
-                               {% if user and 'admin' in user_role_values %}checked{% endif %}>
-                        <label class="form-check-label" for="is_admin">
-                            Admin
-                        </label>
-                    </div>
-                    {% if not user %}
-                    <small class="form-text text-muted">
-                        If Admin is not checked, user will automatically get both Worker and Middleman roles and entities.
-                    </small>
-                    {% else %}
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="is_worker" name="is_worker" 
-                               {% if user and 'worker' in user_role_values %}checked{% endif %}>
-                        <label class="form-check-label" for="is_worker">
-                            Worker
-                        </label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="is_middleman" name="is_middleman" 
-                               {% if user and 'middleman' in user_role_values %}checked{% endif %}>
-                        <label class="form-check-label" for="is_middleman">
-                            Middleman
-                        </label>
-                    </div>
-                    {% endif %}
-                </div>
-
-                {% if user %}
-                <div class="mb-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
-                               {% if user.is_active %}checked{% endif %}>
-                        <label class="form-check-label" for="is_active">
-                            Active
-                        </label>
-                    </div>
-                </div>
-                {% endif %}
-
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-check-circle"></i> {% if user %}Update User{% else %}Create User{% endif %}
-                </button>
-                <a href="/users" class="btn btn-secondary">Cancel</a>
-            </form>
-        </div>
-    </div>
-</div>
-
+<div class="row"><div class="col-lg-6">
+    <div class="card"><div class="card-body">
+        <form method="POST">
+            {% csrf_token %}
+            {% if not user_obj %}
+            <div class="mb-3">
+                <label class="form-label">Username <span class="text-danger">*</span></label>
+                <input type="text" name="username" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Password <span class="text-danger">*</span></label>
+                <input type="password" name="password" class="form-control" required minlength="6">
+            </div>
+            {% endif %}
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <input type="email" name="email" class="form-control" value="{{ user_obj.email|default:'' }}">
+            </div>
+            {% if not user_obj %}
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" name="is_admin" id="isAdmin">
+                <label class="form-check-label" for="isAdmin">Admin user</label>
+            </div>
+            {% else %}
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" name="is_active" id="isActive"
+                       {% if user_obj.is_active %}checked{% endif %}>
+                <label class="form-check-label" for="isActive">Active</label>
+            </div>
+            {% endif %}
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> {% if user_obj %}Update{% else %}Create{% endif %}</button>
+                <a href="{% url 'user_list' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div></div>
+</div></div>
 {% endblock %}

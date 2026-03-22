@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Middlemen{% endblock %}
+{% block page_title %}Middlemen{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>All Middlemen</h2>
+    <a href="{% url 'middleman_create' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> New Middleman</a>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead><tr><th>Code</th><th>Name</th><th>Email</th><th>Phone</th><th>Projects</th><th>Actions</th></tr></thead>
+        <tbody>
+            {% for m in middlemen %}
+            <tr>
+                <td><strong>{{ m.middleman_code }}</strong></td>
+                <td><a href="{% url 'middleman_detail' m.pk %}">{{ m.name }}</a></td>
+                <td>{{ m.email|default:"-" }}</td>
+                <td>{{ m.phone|default:"-" }}</td>
+                <td><span class="badge bg-secondary">{{ m.jobs.count }}</span></td>
+                <td>
+                    <a href="{% url 'middleman_detail' m.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+                    <a href="{% url 'middleman_edit' m.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center text-muted py-4">No middlemen yet. <a href="{% url 'middleman_create' %}">Create one</a>.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

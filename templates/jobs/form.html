@@ -1,282 +1,162 @@
 {% extends "base.html" %}
+{% block title %}{{ job.job_code|default:"New Job" }}{% endblock %}
+{% block page_title %}{% if job %}Edit Job: {{ job.job_code }}{% else %}New Job{% endif %}{% endblock %}
 
 {% block content %}
-<h1 class="mb-4">{% if job %}Edit{% else %}New{% endif %} Job</h1>
+<form method="post">
+    {% csrf_token %}
+    <div class="row"><div class="col-lg-10">
 
-{% if error %}
-<div class="alert alert-danger">{{ error }}</div>
-{% endif %}
-
-<form method="POST" action="{% if job %}/jobs/{{ job.id }}/edit{% else %}/jobs/new{% endif %}">
-    <div class="row">
-        <div class="col-md-6">
-            <div class="mb-3">
-                <label for="job_code" class="form-label">Job Code</label>
-                <input type="text" class="form-control" id="job_code" name="job_code" value="{{ job.job_code if job else (suggested_code if suggested_code else '') }}" placeholder="{{ suggested_code if suggested_code else 'Auto-generated if left empty' }}">
-                <small class="form-text text-muted">Leave empty to auto-generate ({{ suggested_code if suggested_code else 'next available' }})</small>
+    <!-- Basic Info -->
+    <div class="card mb-3">
+        <div class="card-header"><h6 class="mb-0">Basic Info</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <label class="form-label">Title <span class="text-danger">*</span></label>
+                    <input type="text" name="title" class="form-control" value="{{ job.title|default:'' }}" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Source</label>
+                    <select name="source" class="form-select">
+                        <option value="">-- None --</option>
+                        <option value="upwork" {% if job and job.source == 'upwork' %}selected{% endif %}>Upwork</option>
+                        <option value="freelancer" {% if job and job.source == 'freelancer' %}selected{% endif %}>Freelancer</option>
+                        <option value="linkedin" {% if job and job.source == 'linkedin' %}selected{% endif %}>LinkedIn</option>
+                        <option value="fiverr" {% if job and job.source == 'fiverr' %}selected{% endif %}>Fiverr</option>
+                        <option value="direct" {% if job and job.source == 'direct' %}selected{% endif %}>Direct</option>
+                        <option value="other" {% if job and job.source == 'other' %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Client</label>
+                    <select name="client" class="form-select">
+                        <option value="">-- Select Client --</option>
+                        {% for c in clients %}
+                        <option value="{{ c.pk }}" {% if job and job.client_id == c.pk %}selected{% endif %}>{{ c.client_code }} - {{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Middleman</label>
+                    <select name="middleman" class="form-select">
+                        <option value="">-- Select Middleman --</option>
+                        {% for m in middlemen %}
+                        <option value="{{ m.pk }}" {% if job and job.middleman_id == m.pk %}selected{% endif %}>{{ m.middleman_code }} - {{ m.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="mb-3">
-                <label for="title" class="form-label">Title *</label>
-                <input type="text" class="form-control" id="title" name="title" value="{{ job.title if job else '' }}" required>
+    </div>
+
+    <!-- Type, Status, Value -->
+    <div class="card mb-3">
+        <div class="card-header"><h6 class="mb-0">Job Config</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Job Type</label>
+                    <select name="job_type" class="form-select">
+                        <option value="fixed" {% if job and job.job_type == 'fixed' %}selected{% endif %}>Fixed</option>
+                        <option value="hourly" {% if job and job.job_type == 'hourly' %}selected{% endif %}>Hourly</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="draft" {% if job and job.status == 'draft' %}selected{% endif %}>Draft</option>
+                        <option value="active" {% if job and job.status == 'active' %}selected{% endif %}>Active</option>
+                        <option value="completed" {% if job and job.status == 'completed' %}selected{% endif %}>Completed</option>
+                        <option value="archived" {% if job and job.status == 'archived' %}selected{% endif %}>Archived</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Contract Value ($)</label>
+                    <input type="number" name="contract_value" step="0.01" class="form-control" value="{{ job.contract_value|default:'0.00' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Connects Used</label>
+                    <input type="number" name="connects_used" class="form-control" value="{{ job.connects_used|default:'0' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Commission Type</label>
+                    <select name="commission_type" class="form-select">
+                        <option value="percent" {% if job and job.commission_type == 'percent' %}selected{% endif %}>Percentage</option>
+                        <option value="flat" {% if job and job.commission_type == 'flat' %}selected{% endif %}>Flat Amount</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Commission Value</label>
+                    <input type="number" name="commission_value" step="0.01" class="form-control" value="{{ job.commission_value|default:'0.00' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" name="start_date" class="form-control" value="{{ job.start_date|date:'Y-m-d'|default:'' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">End Date</label>
+                    <input type="date" name="end_date" class="form-control" value="{{ job.end_date|date:'Y-m-d'|default:'' }}">
+                </div>
             </div>
         </div>
     </div>
-    
-    <!-- Client Selection -->
-    <div class="mb-3">
-        <label for="client_id" class="form-label">
-            Client
-            <a href="/clients/new" target="_blank" class="btn btn-sm btn-outline-secondary ms-2" title="Create New Client">
-                <i class="bi bi-plus-circle"></i> New Client
-            </a>
-        </label>
-        <select class="form-select" id="client_id" name="client_id">
-            <option value="">-- Select Client --</option>
-            {% for client in clients %}
-            <option value="{{ client.id }}" {{ 'selected' if job and job.client_id == client.id else '' }}>
-                {{ client.client_code }} - {{ client.name }}
-                {% if client.company_name and client.company_name != client.name %}
-                    ({{ client.company_name }})
-                {% endif %}
-            </option>
-            {% endfor %}
-        </select>
-        <small class="form-text text-muted">
-            Select an existing client or 
-            <a href="/clients/new" target="_blank">create a new client</a> first.
-        </small>
-    </div>
-    
-    <!-- Legacy client_name field (for backward compatibility) -->
-    <div class="mb-3">
-        <label for="client_name" class="form-label">Client Name (Legacy/Manual Entry)</label>
-        <input type="text" class="form-control" id="client_name" name="client_name" value="{{ job.client_name if job else '' }}" placeholder="Use only if client not in system">
-        <small class="form-text text-muted">Use this field only if the client is not in the system above</small>
-    </div>
-    
-    <div class="mb-3">
-        <label for="source" class="form-label">Job Source</label>
-        <select class="form-select" id="source" name="source">
-            <option value="">Select Source</option>
-            <option value="upwork" {% if job and job.source and job.source.value == "upwork" %}selected{% endif %}>Upwork</option>
-            <option value="freelancer" {% if job and job.source and job.source.value == "freelancer" %}selected{% endif %}>Freelancer</option>
-            <option value="linkedin" {% if job and job.source and job.source.value == "linkedin" %}selected{% endif %}>LinkedIn</option>
-            <option value="fiverr" {% if job and job.source and job.source.value == "fiverr" %}selected{% endif %}>Fiverr</option>
-            <option value="direct" {% if job and job.source and job.source.value == "direct" %}selected{% endif %}>Direct</option>
-            <option value="other" {% if job and job.source and job.source.value == "other" %}selected{% endif %}>Other</option>
-        </select>
-    </div>
-    
-    <div class="mb-3">
-        <label for="job_post_url" class="form-label">Job Post URL *</label>
-        <input type="url" class="form-control" id="job_post_url" name="job_post_url" value="{{ job.job_post_url if job else '' }}" required>
-    </div>
-    
-    <!-- Job Description (Quill.js Editor) -->
-    <div class="mb-3">
-        <label for="description" class="form-label">Job Description</label>
-        <div id="description-editor" style="height: 300px;"></div>
-        <textarea id="description" name="description" style="display: none;">{{ job.description if job and job.description else '' }}</textarea>
-        <small class="form-text text-muted">Rich text editor for job description</small>
-    </div>
-    
-    <!-- Cover Letter (Quill.js Editor) -->
-    <div class="mb-3">
-        <label for="cover_letter" class="form-label">Cover Letter</label>
-        <div id="cover-letter-editor" style="height: 300px;"></div>
-        <textarea id="cover_letter" name="cover_letter" style="display: none;">{{ job.cover_letter if job and job.cover_letter else '' }}</textarea>
-        <small class="form-text text-muted">Cover letter used to apply for this job</small>
-    </div>
-    
-    <!-- Company/Client Details Card -->
+
+    <!-- Description & Cover Letter (collapsible) -->
     <div class="card mb-3">
         <div class="card-header">
-            <h5 class="mb-0">Company/Client Details <small class="text-muted">(Optional)</small></h5>
+            <a class="text-decoration-none" data-bs-toggle="collapse" href="#descSection">
+                <h6 class="mb-0">Description & Cover Letter <i class="bi bi-chevron-down"></i></h6>
+            </a>
         </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="company_name" class="form-label">Company Name <small class="text-muted">(optional)</small></label>
-                        <input type="text" class="form-control" id="company_name" name="company_name" value="{{ job.company_name if job else '' }}">
-                    </div>
+        <div class="collapse {% if job and job.description or job and job.cover_letter %}show{% endif %}" id="descSection">
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="4">{{ job.description|default:'' }}</textarea>
                 </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="company_website" class="form-label">Company Website <small class="text-muted">(optional)</small></label>
-                        <input type="text" class="form-control" id="company_website" name="company_website" value="{{ job.company_website if job else '' }}" placeholder="https://example.com">
-                    </div>
+                <div class="mb-3">
+                    <label class="form-label">Cover Letter</label>
+                    <textarea name="cover_letter" class="form-control" rows="4">{{ job.cover_letter|default:'' }}</textarea>
                 </div>
             </div>
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="company_email" class="form-label">Company Email <small class="text-muted">(optional)</small></label>
-                        <input type="text" class="form-control" id="company_email" name="company_email" value="{{ job.company_email if job else '' }}">
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="company_phone" class="form-label">Company Phone <small class="text-muted">(optional)</small></label>
-                        <input type="text" class="form-control" id="company_phone" name="company_phone" value="{{ job.company_phone if job else '' }}">
-                    </div>
-                </div>
-            </div>
-            <div class="mb-3">
-                <label for="company_address" class="form-label">Company Address <small class="text-muted">(optional)</small></label>
-                <textarea class="form-control" id="company_address" name="company_address" rows="2">{{ job.company_address if job else '' }}</textarea>
-            </div>
-            <div class="mb-3">
-                <label for="client_notes" class="form-label">Additional Client/Company Notes <small class="text-muted">(optional)</small></label>
-                <textarea class="form-control" id="client_notes" name="client_notes" rows="3">{{ job.client_notes if job else '' }}</textarea>
-            </div>
         </div>
     </div>
-    
-    <div class="row">
-        <div class="col-md-4">
-            <div class="mb-3">
-                <label for="upwork_job_id" class="form-label">Upwork Job ID</label>
-                <input type="text" class="form-control" id="upwork_job_id" name="upwork_job_id" value="{{ job.upwork_job_id if job else '' }}">
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="mb-3">
-                <label for="upwork_contract_id" class="form-label">Upwork Contract ID</label>
-                <input type="text" class="form-control" id="upwork_contract_id" name="upwork_contract_id" value="{{ job.upwork_contract_id if job else '' }}">
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="mb-3">
-                <label for="upwork_offer_id" class="form-label">Upwork Offer ID</label>
-                <input type="text" class="form-control" id="upwork_offer_id" name="upwork_offer_id" value="{{ job.upwork_offer_id if job else '' }}">
-            </div>
-        </div>
-    </div>
-    
-    <div class="row">
-        <div class="col-md-4">
-            <div class="mb-3">
-                <label for="job_type" class="form-label">Job Type *</label>
-                <select class="form-select" id="job_type" name="job_type" required>
-                    <option value="fixed" {% if job and job.job_type.value == 'fixed' %}selected{% endif %}>Fixed</option>
-                    <option value="hourly" {% if job and job.job_type.value == 'hourly' %}selected{% endif %}>Hourly</option>
-                </select>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="mb-3">
-                <label for="status" class="form-label">Status *</label>
-                <select class="form-select" id="status" name="status" required>
-                    <option value="draft" {% if job and job.status.value == 'draft' %}selected{% endif %}>Draft</option>
-                    <option value="active" {% if job and job.status.value == 'active' %}selected{% endif %}>Active</option>
-                    <option value="completed" {% if job and job.status.value == 'completed' %}selected{% endif %}>Completed</option>
-                </select>
-            </div>
-        </div>
-    </div>
-    
-    <div class="row">
-        <div class="col-md-6">
-            <div class="mb-3">
-                <label for="start_date" class="form-label">Start Date</label>
-                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ job.start_date if job else '' }}">
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="mb-3">
-                <label for="end_date" class="form-label">End Date</label>
-                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ job.end_date if job else '' }}">
-            </div>
-        </div>
-    </div>
-    
-    <div class="mb-3">
-        <label for="connects_used" class="form-label">Connects Used</label>
-        <input type="number" class="form-control" id="connects_used" name="connects_used" value="{{ job.connects_used if job else '' }}" min="0" step="1">
-        <small class="form-text text-muted">Number of connects used for this job</small>
-    </div>
-    
-    {% if not job %}
-    <div class="alert alert-info">
-        <strong>Settings Version:</strong> {{ active_settings_version.name }} (will be attached automatically)
-    </div>
-    {% endif %}
-    
-    <button type="submit" class="btn btn-primary">Save</button>
-    <a href="{% if job %}/jobs/{{ job.id }}{% else %}/jobs{% endif %}" class="btn btn-secondary">Cancel</a>
-</form>
-{% endblock %}
 
-{% block scripts %}
-<script>
-$(document).ready(function() {
-    // Initialize DataTables on all tables with class 'data-table'
-    $('table.data-table').DataTable({
-        pageLength: 25,
-        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-        order: [],
-        columnDefs: [
-            { orderable: false, targets: -1 } // Disable sorting on last column (Actions)
-        ]
-    });
-    
-    // Initialize Quill.js editors
-    var descriptionEditor = new Quill('#description-editor', {
-        theme: 'snow',
-        modules: {
-            toolbar: [
-                [{ 'header': [1, 2, 3, false] }],
-                ['bold', 'italic', 'underline', 'strike'],
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                [{ 'color': [] }, { 'background': [] }],
-                [{ 'align': [] }],
-                ['link', 'image'],
-                ['clean']
-            ]
-        },
-        placeholder: 'Enter job description...'
-    });
-    
-    var coverLetterEditor = new Quill('#cover-letter-editor', {
-        theme: 'snow',
-        modules: {
-            toolbar: [
-                [{ 'header': [1, 2, 3, false] }],
-                ['bold', 'italic', 'underline', 'strike'],
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                [{ 'color': [] }, { 'background': [] }],
-                [{ 'align': [] }],
-                ['link'],
-                ['clean']
-            ]
-        },
-        placeholder: 'Enter cover letter...'
-    });
-    
-    // Load existing content into editors from hidden textareas
-    var descriptionTextarea = document.getElementById('description');
-    var coverLetterTextarea = document.getElementById('cover_letter');
-    
-    if (descriptionTextarea && descriptionTextarea.value) {
-        descriptionEditor.root.innerHTML = descriptionTextarea.value;
-    }
-    
-    if (coverLetterTextarea && coverLetterTextarea.value) {
-        coverLetterEditor.root.innerHTML = coverLetterTextarea.value;
-    }
-    
-    // Sync Quill content to hidden textareas before form submission
-    $('form').on('submit', function() {
-        var descriptionHtml = descriptionEditor.root.innerHTML;
-        var coverLetterHtml = coverLetterEditor.root.innerHTML;
-        
-        // Set textarea values with HTML content
-        $('#description').val(descriptionHtml);
-        $('#cover_letter').val(coverLetterHtml);
-    });
-});
-</script>
+    <!-- Platform IDs & URL -->
+    <div class="card mb-3">
+        <div class="card-header"><h6 class="mb-0">Platform Links</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-12">
+                    <label class="form-label">Job Post URL</label>
+                    <input type="url" name="job_post_url" class="form-control" value="{{ job.job_post_url|default:'' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Upwork Job ID</label>
+                    <input type="text" name="upwork_job_id" class="form-control" value="{{ job.upwork_job_id|default:'' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Contract ID</label>
+                    <input type="text" name="upwork_contract_id" class="form-control" value="{{ job.upwork_contract_id|default:'' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Offer ID</label>
+                    <input type="text" name="upwork_offer_id" class="form-control" value="{{ job.upwork_offer_id|default:'' }}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> {{ job|yesno:"Update,Create" }} Job</button>
+        {% if job %}
+        <a href="{% url 'job_detail' job.pk %}" class="btn btn-secondary">Cancel</a>
+        {% else %}
+        <a href="{% url 'job_list' %}" class="btn btn-secondary">Cancel</a>
+        {% endif %}
+    </div>
+
+    </div></div>
+</form>
 {% endblock %}

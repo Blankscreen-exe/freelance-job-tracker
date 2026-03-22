@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Accounting Ledger{% endblock %}
+{% block page_title %}Accounting Ledger{% endblock %}
+
+{% block content %}
+<!-- Filters -->
+<form method="get" class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">From</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">To</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Type</label>
+                <select name="type" class="form-select">
+                    <option value="">All</option>
+                    <option value="receipt" {% if entry_type == 'receipt' %}selected{% endif %}>Receipts</option>
+                    <option value="payment" {% if entry_type == 'payment' %}selected{% endif %}>Payments</option>
+                    {% if is_admin %}<option value="expense" {% if entry_type == 'expense' %}selected{% endif %}>Expenses</option>{% endif %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Filter</button>
+                <a href="{% url 'ledger_export' %}?date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}{% if entry_type %}&type={{ entry_type }}{% endif %}" class="btn btn-outline-success">
+                    <i class="bi bi-download"></i> Export CSV
+                </a>
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- Ledger Table -->
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                    <th>Job</th>
+                    <th class="text-end">Amount</th>
+                    <th class="text-end">Balance</th>
+                    <th>Reference</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in entries %}
+                <tr>
+                    <td>{{ entry.date|date:"M d, Y" }}</td>
+                    <td>
+                        {% if entry.type == 'receipt' %}
+                        <span class="badge bg-success">Receipt</span>
+                        {% elif entry.type == 'payment' %}
+                        <span class="badge bg-primary">Payment</span>
+                        {% else %}
+                        <span class="badge bg-warning text-dark">Expense</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ entry.description }}</td>
+                    <td>{{ entry.job_code }}</td>
+                    <td class="text-end {% if entry.amount >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {% if entry.amount >= 0 %}${{ entry.abs_amount|floatformat:2 }}{% else %}-${{ entry.abs_amount|floatformat:2 }}{% endif %}
+                    </td>
+                    <td class="text-end {% if entry.balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {% if entry.balance >= 0 %}${{ entry.abs_balance|floatformat:2 }}{% else %}-${{ entry.abs_balance|floatformat:2 }}{% endif %}
+                    </td>
+                    <td><small class="text-muted">{{ entry.reference }}</small></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-3">No transactions found for this period.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

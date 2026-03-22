@@ -1,113 +1,111 @@
 {% extends "base.html" %}
 
+{% block title %}Dashboard - Job Tracker{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
 {% block content %}
-<h1 class="mb-4">Dashboard</h1>
-
-<!-- TOP SECTION: Original Dashboard Content -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Total Received</h5>
-                <h3 class="text-success">${{ "%.2f"|format(totals.total_received) }}</h3>
+<!-- Financial Summary -->
+<div class="row g-3 mb-4">
+    <div class="col-md-2">
+        <div class="card bg-success bg-opacity-10">
+            <div class="card-body py-3">
+                <small class="text-muted">Total Received</small>
+                <h4 class="mb-0 text-success">${{ totals.total_received|floatformat:2 }}</h4>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
         <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Total Connects</h5>
-                <h3 class="text-warning">${{ "%.2f"|format(totals.total_connects) }}</h3>
+            <div class="card-body py-3">
+                <small class="text-muted">Connects</small>
+                <h4 class="mb-0 text-danger">${{ totals.total_connects|floatformat:2 }}</h4>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
         <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Platform Fee</h5>
-                <h3 class="text-info">${{ "%.2f"|format(totals.total_platform_fee) }}</h3>
+            <div class="card-body py-3">
+                <small class="text-muted">Platform Fee</small>
+                <h4 class="mb-0 text-danger">${{ totals.total_platform_fee|floatformat:2 }}</h4>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Total Paid</h5>
-                <h3 class="text-primary">${{ "%.2f"|format(totals.total_paid) }}</h3>
+    <div class="col-md-2">
+        <div class="card bg-primary bg-opacity-10">
+            <div class="card-body py-3">
+                <small class="text-muted">Paid to Workers</small>
+                <h4 class="mb-0 text-primary">${{ totals.total_paid|floatformat:2 }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-warning bg-opacity-10">
+            <div class="card-body py-3">
+                <small class="text-muted">Total Due</small>
+                <h4 class="mb-0 text-warning">${{ totals.total_due|floatformat:2 }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-info bg-opacity-10">
+            <div class="card-body py-3">
+                <small class="text-muted">Active Jobs</small>
+                <h4 class="mb-0 text-info">{{ totals.active_jobs }}</h4>
             </div>
         </div>
     </div>
 </div>
 
-<div class="row mb-4">
-    <div class="col-md-6">
+<div class="row g-4">
+    <div class="col-md-8">
         <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Total Due</h5>
-                <h2 class="text-danger">${{ "%.2f"|format(totals.total_due) }}</h2>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Recent Jobs</h5>
+                <a href="{% url 'job_create' %}" class="btn btn-sm btn-primary"><i class="bi bi-plus"></i> New Job</a>
             </div>
-        </div>
-    </div>
-</div>
-
-<div class="row mb-5">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5>Top Due Workers</h5>
-            </div>
-            <div class="card-body">
-                {% if worker_dues %}
-                <table class="table data-table">
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
                     <thead>
-                        <tr>
-                            <th>Worker</th>
-                            <th>Due</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in worker_dues %}
-                        <tr>
-                            <td><a href="/workers/{{ item.worker.id }}">{{ item.worker.name }}</a></td>
-                            <td class="text-danger">${{ "%.2f"|format(item.due) }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% else %}
-                <p class="text-muted">No workers with outstanding dues.</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5>Recent Jobs</h5>
-            </div>
-            <div class="card-body">
-                {% if recent_jobs %}
-                <table class="table data-table">
-                    <thead>
-                        <tr>
-                            <th>Code</th>
-                            <th>Title</th>
-                            <th>Status</th>
-                        </tr>
+                        <tr><th>Code</th><th>Title</th><th>Client</th><th>Status</th></tr>
                     </thead>
                     <tbody>
                         {% for job in recent_jobs %}
                         <tr>
-                            <td>{{ job.job_code }}</td>
-                            <td><a href="/jobs/{{ job.id }}">{{ job.title }}</a></td>
-                            <td><span class="badge bg-secondary">{{ job.status.value }}</span></td>
+                            <td><strong>{{ job.job_code }}</strong></td>
+                            <td><a href="{% url 'job_detail' job.pk %}">{{ job.title }}</a></td>
+                            <td>{{ job.client.name|default:"-" }}</td>
+                            <td>
+                                <span class="badge bg-{% if job.status == 'active' %}primary{% elif job.status == 'completed' %}success{% elif job.status == 'draft' %}secondary{% else %}dark{% endif %}">
+                                    {{ job.get_status_display }}
+                                </span>
+                            </td>
                         </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-4">No jobs yet. <a href="{% url 'job_create' %}">Create one</a>.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
-                {% else %}
-                <p class="text-muted">No recent jobs.</p>
-                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0">Top Due Workers</h5></div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>Worker</th><th class="text-end">Due</th></tr></thead>
+                    <tbody>
+                        {% for w in top_due_workers %}
+                        <tr>
+                            <td><a href="{% url 'worker_detail' w.id %}">{{ w.name }}</a></td>
+                            <td class="text-end text-warning">${{ w.due|floatformat:2 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="2" class="text-center text-muted py-4">No outstanding dues</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

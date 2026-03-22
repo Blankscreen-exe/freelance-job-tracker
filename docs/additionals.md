@@ -1,0 +1,2 @@
+- minio for profile picture and other asset support
+- payment gateway integration for payment support

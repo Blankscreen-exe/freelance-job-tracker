@@ -1,91 +1,65 @@
 {% extends "base.html" %}
+{% block title %}{% if payment %}Edit Payment{% else %}New Payment{% endif %}{% endblock %}
+{% block page_title %}{% if payment %}Edit {{ payment.payment_code }}{% else %}New Payment{% endif %}{% endblock %}
 
 {% block content %}
-<h1 class="mb-4">{% if payment %}Edit{% else %}New{% endif %} Payment</h1>
-
-{% if error %}
-<div class="alert alert-danger">{{ error }}</div>
-{% endif %}
-
-{% if payment and (payment.is_auto_generated or payment.method == "Auto-generated") %}
-<div class="alert alert-info">
-    <i class="bi bi-info-circle"></i> This payment was auto-generated from a receipt. You can modify it, but it will be marked as modified.
-</div>
-{% endif %}
-
-<form method="POST" action="{% if payment %}/payments/{{ payment.id }}/edit{% else %}/payments/new{% endif %}" id="paymentForm">
-    <div class="mb-3">
-        <label for="payment_code" class="form-label">Payment Code</label>
-        <input type="text" class="form-control" id="payment_code" name="payment_code" value="{{ payment.payment_code if payment else (suggested_code if suggested_code else '') }}" placeholder="{{ suggested_code if suggested_code else 'Auto-generated if left empty' }}">
-        <small class="form-text text-muted">Leave empty to auto-generate ({{ suggested_code if suggested_code else 'next available' }})</small>
-    </div>
-    
-    <div class="mb-3">
-        <label for="worker_id" class="form-label">Worker *</label>
-        <select class="form-select" id="worker_id" name="worker_id" required>
-            <option value="">Select worker...</option>
-            {% for worker in workers %}
-            <option value="{{ worker.id }}" {% if payment and payment.worker_id == worker.id %}selected{% endif %}>{{ worker.name }} ({{ worker.worker_code }})</option>
-            {% endfor %}
-        </select>
-    </div>
-    
-    <div class="mb-3">
-        <label for="job_id" class="form-label">Job (optional)</label>
-        <select class="form-select" id="job_id" name="job_id">
-            <option value="None">None</option>
-            {% for job in jobs %}
-            <option value="{{ job.id }}" {% if (payment and payment.job_id == job.id) or (default_job_id and default_job_id == job.id) %}selected{% endif %}>{{ job.job_code }} - {{ job.title }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    
-    <div class="mb-3">
-        <label for="amount_paid" class="form-label">Amount Paid *</label>
-        <input type="number" step="0.01" class="form-control" id="amount_paid" name="amount_paid" value="{{ payment.amount_paid if payment else '' }}" required>
-    </div>
-    
-    <div class="mb-3">
-        <label for="paid_date" class="form-label">Paid Date *</label>
-        <input type="date" class="form-control" id="paid_date" name="paid_date" value="{{ payment.paid_date if payment else '' }}" required>
-    </div>
-    
-    <div class="mb-3">
-        <label for="method" class="form-label">Payment Method</label>
-        <input type="text" class="form-control" id="method" name="method" value="{{ payment.method if payment else '' }}">
-    </div>
-    
-    <div class="mb-3">
-        <label for="reference" class="form-label">Reference</label>
-        <input type="text" class="form-control" id="reference" name="reference" value="{{ payment.reference if payment else '' }}">
-    </div>
-    
-    <div class="mb-3">
-        <label for="notes" class="form-label">Notes</label>
-        <textarea class="form-control" id="notes" name="notes" rows="3">{{ payment.notes if payment else '' }}</textarea>
-    </div>
-    
-    {% if payment %}
-    <div class="mb-3">
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="is_paid" name="is_paid" {% if payment.is_paid %}checked{% endif %}>
-            <label class="form-check-label" for="is_paid">
-                Mark as paid
-            </label>
-        </div>
-    </div>
-    {% else %}
-    <div class="mb-3">
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="is_paid" name="is_paid" checked>
-            <label class="form-check-label" for="is_paid">
-                Mark as paid (manual payments are typically paid when created)
-            </label>
-        </div>
-    </div>
-    {% endif %}
-    
-    <button type="submit" class="btn btn-primary">Save</button>
-    <a href="/payments" class="btn btn-secondary">Cancel</a>
-</form>
+<div class="row"><div class="col-lg-8">
+    <div class="card"><div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Worker <span class="text-danger">*</span></label>
+                    <select name="worker" class="form-select" required>
+                        <option value="">-- Select Worker --</option>
+                        {% for w in workers %}
+                        <option value="{{ w.pk }}" {% if payment and payment.worker_id == w.pk %}selected{% endif %}>{{ w.worker_code }} - {{ w.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Job (optional)</label>
+                    <select name="job" class="form-select">
+                        <option value="">-- Select Job --</option>
+                        {% for j in jobs %}
+                        <option value="{{ j.pk }}" {% if payment and payment.job_id == j.pk %}selected{% endif %}>{{ j.job_code }} - {{ j.title|truncatewords:5 }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Amount <span class="text-danger">*</span></label>
+                    <input type="number" name="amount_paid" step="0.01" class="form-control" required
+                           value="{{ payment.amount_paid|default:'' }}">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Date <span class="text-danger">*</span></label>
+                    <input type="date" name="paid_date" class="form-control" required
+                           value="{{ payment.paid_date|date:'Y-m-d'|default:'' }}">
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Method</label>
+                    <input type="text" name="method" class="form-control" placeholder="Bank transfer, PayPal, etc."
+                           value="{{ payment.method|default:'' }}">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Reference</label>
+                    <input type="text" name="reference" class="form-control" placeholder="Transaction ID, etc."
+                           value="{{ payment.reference|default:'' }}">
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Notes</label>
+                <textarea name="notes" class="form-control" rows="2">{{ payment.notes|default:'' }}</textarea>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> {% if payment %}Update{% else %}Record{% endif %} Payment</button>
+                <a href="{% url 'payment_list' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div></div>
+</div></div>
 {% endblock %}

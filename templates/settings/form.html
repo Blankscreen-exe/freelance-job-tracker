@@ -1,30 +1,68 @@
 {% extends "base.html" %}
+{% block title %}New Settings Version{% endblock %}
+{% block page_title %}New Settings Version{% endblock %}
 
 {% block content %}
-<h1 class="mb-4">New Settings Version</h1>
+<div class="row"><div class="col-lg-8">
+    <div class="card"><div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="form-label">Name <span class="text-danger">*</span></label>
+                <input type="text" name="name" class="form-control" required placeholder="e.g. v1.0 - Standard Rates">
+            </div>
 
-{% if error %}
-<div class="alert alert-danger">{{ error }}</div>
-{% endif %}
+            <div class="mb-3">
+                <label class="form-label">Currency</label>
+                <input type="text" name="currency_default" class="form-control" value="USD" style="max-width:120px">
+            </div>
 
-<form method="POST" action="/settings/new">
-    <div class="mb-3">
-        <label for="name" class="form-label">Name *</label>
-        <input type="text" class="form-control" id="name" name="name" required>
-    </div>
-    
-    <div class="mb-3">
-        <label for="rules_json" class="form-label">Rules JSON *</label>
-        <textarea class="form-control font-monospace" id="rules_json" name="rules_json" rows="15" required>{{ default_rules_json }}</textarea>
-        <small class="form-text text-muted">Enter valid JSON for the rules configuration.</small>
-    </div>
-    
-    <div class="mb-3">
-        <label for="notes" class="form-label">Notes</label>
-        <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
-    </div>
-    
-    <button type="submit" class="btn btn-primary">Create Settings Version</button>
-    <a href="/settings" class="btn btn-secondary">Cancel</a>
-</form>
+            <h6 class="mt-4 mb-3">Connect Cost</h6>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Cost Per Connect ($)</label>
+                    <input type="number" name="connect_cost_per_unit" step="0.01" class="form-control" value="0.15">
+                    <small class="form-text text-muted">Dollar cost per single connect (e.g. $0.15)</small>
+                </div>
+            </div>
+
+            <h6 class="mt-4 mb-3">Platform Fee</h6>
+            <div class="mb-3 form-check">
+                <input type="checkbox" name="platform_fee_enabled" class="form-check-input" id="pf_enabled">
+                <label class="form-check-label" for="pf_enabled">Enable Platform Fee</label>
+            </div>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Mode</label>
+                    <select name="platform_fee_mode" class="form-select">
+                        <option value="percent">Percentage</option>
+                        <option value="fixed">Fixed</option>
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Value</label>
+                    <input type="number" name="platform_fee_value" step="0.0001" class="form-control" value="0">
+                    <small class="form-text text-muted">For percent use decimal (0.10 = 10%)</small>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Apply On</label>
+                    <select name="platform_fee_apply_on" class="form-select">
+                        <option value="net">Net (after connects)</option>
+                        <option value="gross">Gross</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Notes</label>
+                <textarea name="notes" class="form-control" rows="2"></textarea>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Create Version</button>
+                <a href="{% url 'settings_list' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div></div>
+</div></div>
 {% endblock %}

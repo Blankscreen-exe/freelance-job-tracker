@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ middleman.name }}{% endblock %}
+{% block page_title %}{{ middleman.middleman_code }} - {{ middleman.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div></div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'middleman_edit' middleman.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i> Edit</a>
+        <a href="{% url 'middleman_list' %}" class="btn btn-sm btn-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><h6 class="mb-0">Contact</h6></div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Email</dt><dd class="col-sm-7">{{ middleman.email|default:"-" }}</dd>
+                    <dt class="col-sm-5">Phone</dt><dd class="col-sm-7">{{ middleman.phone|default:"-" }}</dd>
+                    <dt class="col-sm-5">Alt Contact</dt><dd class="col-sm-7">{{ middleman.contact|default:"-" }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><h6 class="mb-0">Summary</h6></div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-6">Projects Brought</dt><dd class="col-sm-6"><strong>{{ jobs|length }}</strong></dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h6 class="mb-0">Projects Brought</h6></div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead><tr><th>Code</th><th>Title</th><th>Client</th><th>Status</th></tr></thead>
+            <tbody>
+                {% for job in jobs %}
+                <tr>
+                    <td><strong>{{ job.job_code }}</strong></td>
+                    <td><a href="{% url 'job_detail' job.pk %}">{{ job.title }}</a></td>
+                    <td>{{ job.client.name|default:"-" }}</td>
+                    <td><span class="badge bg-{% if job.status == 'active' %}primary{% elif job.status == 'completed' %}success{% else %}secondary{% endif %}">{{ job.get_status_display }}</span></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-3">No projects linked.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

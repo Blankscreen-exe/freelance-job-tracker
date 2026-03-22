@@ -1,161 +1,94 @@
 {% extends "base.html" %}
+{% block title %}{{ worker.name }}{% endblock %}
+{% block page_title %}{{ worker.worker_code }} - {{ worker.name }}{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>{{ worker.name }} ({{ worker.worker_code }})</h1>
-    <div>
-        <a href="/workers/{{ worker.id }}/invoice" class="btn btn-primary">
-            <i class="bi bi-file-earmark-pdf"></i> Export Invoice
-        </a>
-        <a href="/workers/{{ worker.id }}/edit" class="btn btn-secondary">Edit</a>
-        <form method="POST" action="/workers/{{ worker.id }}/archive" class="d-inline">
-            <button type="submit" class="btn btn-danger" onclick="return confirm('Archive this worker?')">Archive</button>
+    <div></div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'worker_invoice' worker.pk %}" class="btn btn-sm btn-outline-info" target="_blank"><i class="bi bi-file-earmark-pdf"></i> Invoice</a>
+        <a href="{% url 'worker_edit' worker.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i> Edit</a>
+        <form method="POST" action="{% url 'worker_archive' worker.pk %}" class="d-inline" onsubmit="return confirm('Archive this worker?')">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-archive"></i> Archive</button>
         </form>
+        <a href="{% url 'worker_list' %}" class="btn btn-sm btn-secondary"><i class="bi bi-arrow-left"></i> Back</a>
     </div>
 </div>
 
-<div class="row mb-4">
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
     <div class="col-md-4">
-        <div class="card">
+        <div class="card bg-success bg-opacity-10">
             <div class="card-body">
-                <h5 class="card-title">Total Earned</h5>
-                <h3 class="text-success">${{ "%.2f"|format(totals.earned) }}</h3>
+                <small class="text-muted">Total Earned</small>
+                <h4 class="text-success">${{ total_earned|floatformat:2 }}</h4>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card">
+        <div class="card bg-primary bg-opacity-10">
             <div class="card-body">
-                <h5 class="card-title">Total Paid</h5>
-                <h3 class="text-primary">${{ "%.2f"|format(totals.paid) }}</h3>
+                <small class="text-muted">Total Paid</small>
+                <h4 class="text-primary">${{ total_paid|floatformat:2 }}</h4>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card">
+        <div class="card bg-warning bg-opacity-10">
             <div class="card-body">
-                <h5 class="card-title">Due</h5>
-                <h3 class="text-danger">${{ "%.2f"|format(totals.due) }}</h3>
+                <small class="text-muted">Total Due</small>
+                <h4 class="text-warning">${{ total_due|floatformat:2 }}</h4>
             </div>
         </div>
     </div>
 </div>
 
-{% if worker.contact %}
-<p><strong>Contact:</strong> {{ worker.contact }}</p>
-{% endif %}
-
-{% if worker.notes %}
-<p><strong>Notes:</strong> {{ worker.notes }}</p>
-{% endif %}
-
-<h3 class="mt-4">Allocations by Job</h3>
-{% if allocations_by_job %}
-<div class="table-responsive">
-    <table class="table data-table">
-        <thead>
-            <tr>
-                <th>Job</th>
-                <th>Label</th>
-                <th>Share Type</th>
-                <th>Share Value</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for job_data in allocations_by_job %}
-            {% for alloc in job_data.allocations %}
-            <tr>
-                <td><a href="/jobs/{{ job_data.job.id }}">{{ job_data.job.job_code }} - {{ job_data.job.title }}</a></td>
-                <td>{{ alloc.label }}</td>
-                <td>{{ alloc.share_type.value }}</td>
-                <td>
-                    {% if alloc.share_type.value == "percent" %}
-                    {{ "%.1f"|format(alloc.share_value * 100) }}%
-                    {% else %}
-                    ${{ "%.2f"|format(alloc.share_value) }}
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-            {% endfor %}
-        </tbody>
-    </table>
+<!-- Allocations -->
+<div class="card mb-4">
+    <div class="card-header"><h6 class="mb-0">Job Allocations</h6></div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead><tr><th>Job</th><th>Label</th><th>Type</th><th>Share</th></tr></thead>
+            <tbody>
+                {% for a in allocations %}
+                <tr>
+                    <td><a href="{% url 'job_detail' a.job.pk %}">{{ a.job.job_code }} - {{ a.job.title }}</a></td>
+                    <td>{{ a.label|default:"-" }}</td>
+                    <td>{{ a.get_share_type_display }}</td>
+                    <td>{% if a.share_type == 'percent' %}{{ a.share_value|floatformat:2 }}%{% else %}${{ a.share_value|floatformat:2 }}{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-3">No allocations.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
-{% else %}
-<p class="text-muted">No allocations found.</p>
-{% endif %}
 
-<h3 class="mt-4">Payments</h3>
-{% if payments_with_allocation %}
-<h5 class="mt-3">Current Allocations</h5>
-<div class="table-responsive">
-    <table class="table data-table">
-        <thead>
-            <tr>
-                <th>Payment Code</th>
-                <th>Date</th>
-                <th>Amount</th>
-                <th>Job</th>
-                <th>Method</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for payment in payments_with_allocation %}
-            <tr>
-                <td>{{ payment.payment_code }}</td>
-                <td>{{ payment.paid_date }}</td>
-                <td>${{ "%.2f"|format(payment.amount_paid) }}</td>
-                <td>
-                    {% if payment.job %}
-                    <a href="/jobs/{{ payment.job.id }}">{{ payment.job.job_code }}</a>
-                    {% else %}
-                    -
-                    {% endif %}
-                </td>
-                <td>{{ payment.method or "-" }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<!-- Payments -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">Payment History</h6>
+        <a href="{% url 'payment_create' %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus"></i> Add Payment</a>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead><tr><th>Code</th><th>Job</th><th>Amount</th><th>Date</th><th>Method</th></tr></thead>
+            <tbody>
+                {% for p in payments %}
+                <tr>
+                    <td>{{ p.payment_code }}</td>
+                    <td>{% if p.job %}<a href="{% url 'job_detail' p.job.pk %}">{{ p.job.job_code }}</a>{% else %}-{% endif %}</td>
+                    <td>${{ p.amount_paid|floatformat:2 }}</td>
+                    <td>{{ p.paid_date|date:"M d, Y" }}</td>
+                    <td>{{ p.method|default:"-" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-3">No payments recorded.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
-{% endif %}
-
-{% if payments_without_allocation %}
-<h5 class="mt-3">Historical Payments (No Current Allocation)</h5>
-<div class="table-responsive">
-    <table class="table data-table">
-        <thead>
-            <tr>
-                <th>Payment Code</th>
-                <th>Date</th>
-                <th>Amount</th>
-                <th>Job</th>
-                <th>Method</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for payment in payments_without_allocation %}
-            <tr>
-                <td>{{ payment.payment_code }}</td>
-                <td>{{ payment.paid_date }}</td>
-                <td>${{ "%.2f"|format(payment.amount_paid) }}</td>
-                <td>
-                    {% if payment.job %}
-                    <a href="/jobs/{{ payment.job.id }}">{{ payment.job.job_code }}</a>
-                    <span class="badge bg-secondary ms-1" title="Worker no longer allocated to this job">Inactive</span>
-                    {% else %}
-                    - <span class="badge bg-secondary ms-1" title="No job association">No Job</span>
-                    {% endif %}
-                </td>
-                <td>{{ payment.method or "-" }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-{% endif %}
-
-{% if not payments %}
-<p class="text-muted">No payments found.</p>
-{% endif %}
 {% endblock %}

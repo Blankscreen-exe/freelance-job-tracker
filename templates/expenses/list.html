@@ -1,68 +1,66 @@
 {% extends "base.html" %}
+{% block title %}Expenses{% endblock %}
+{% block page_title %}Expenses{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>Expenses</h1>
-    <a href="/expenses/new" class="btn btn-primary">New Expense</a>
+    <h2>Expenses <span class="badge bg-danger">${{ total|floatformat:2 }}</span></h2>
+    <div class="d-flex gap-2">
+        <a href="{% url 'expense_tracking' %}" class="btn btn-outline-info"><i class="bi bi-graph-up"></i> Tracking</a>
+        <a href="{% url 'expense_create' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> New Expense</a>
+    </div>
 </div>
 
-<!-- Filters -->
 <div class="card mb-4">
     <div class="card-body">
-        <h5 class="card-title">Filters</h5>
-        <form method="GET" action="/expenses" class="row g-3">
+        <form method="GET" class="row g-3 align-items-end">
             <div class="col-md-3">
-                <label for="date_from" class="form-label">From Date</label>
-                <input type="date" class="form-control" id="date_from" name="date_from" value="{{ date_from or '' }}">
-            </div>
-            <div class="col-md-3">
-                <label for="date_to" class="form-label">To Date</label>
-                <input type="date" class="form-control" id="date_to" name="date_to" value="{{ date_to or '' }}">
-            </div>
-            <div class="col-md-3">
-                <label for="category" class="form-label">Category</label>
-                <select class="form-select" id="category" name="category">
-                    <option value="">All Categories</option>
-                    {% for cat in categories %}
-                    <option value="{{ cat.value }}" {% if category == cat.value %}selected{% endif %}>{{ cat.value|title }}</option>
+                <label class="form-label small">Category</label>
+                <select name="category" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    {% for val, label in categories %}
+                    <option value="{{ val }}" {% if filters.category == val %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary me-2">Filter</button>
-                <a href="/expenses" class="btn btn-secondary">Clear</a>
+            <div class="col-md-3">
+                <label class="form-label small">From</label>
+                <input type="date" name="date_from" class="form-control form-control-sm" value="{{ filters.date_from|default:'' }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">To</label>
+                <input type="date" name="date_to" class="form-control form-control-sm" value="{{ filters.date_to|default:'' }}">
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-sm btn-primary w-100">Filter</button>
             </div>
         </form>
     </div>
 </div>
 
-<table class="table table-striped data-table">
-    <thead>
-        <tr>
-            <th>Code</th>
-            <th>Date</th>
-            <th>Amount</th>
-            <th>Category</th>
-            <th>Description</th>
-            <th>Vendor</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for expense in expenses %}
-        <tr>
-            <td>{{ expense.expense_code }}</td>
-            <td>{{ expense.expense_date.strftime('%Y-%m-%d') }}</td>
-            <td>${{ "%.2f"|format(expense.amount) }}</td>
-            <td><span class="badge bg-secondary">{{ expense.category.value|title }}</span></td>
-            <td>{{ expense.description }}</td>
-            <td>{{ expense.vendor or "-" }}</td>
-            <td>
-                <a href="/expenses/{{ expense.id }}" class="btn btn-sm btn-outline-primary">View</a>
-                <a href="/expenses/{{ expense.id }}/edit" class="btn btn-sm btn-outline-secondary">Edit</a>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead><tr><th>Code</th><th>Date</th><th>Description</th><th>Category</th><th>Amount</th><th>Vendor</th><th>Actions</th></tr></thead>
+        <tbody>
+            {% for e in expenses %}
+            <tr>
+                <td><a href="{% url 'expense_detail' e.pk %}"><strong>{{ e.expense_code }}</strong></a></td>
+                <td>{{ e.expense_date|date:"M d, Y" }}</td>
+                <td>{{ e.description|truncatewords:8 }}</td>
+                <td><span class="badge bg-secondary">{{ e.get_category_display }}</span></td>
+                <td>${{ e.amount|floatformat:2 }}</td>
+                <td>{{ e.vendor|default:"-" }}</td>
+                <td>
+                    <a href="{% url 'expense_edit' e.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+                    <form method="POST" action="{% url 'expense_delete' e.pk %}" class="d-inline" onsubmit="return confirm('Delete?')">
+                        {% csrf_token %}<button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="text-center text-muted py-4">No expenses recorded.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 {% endblock %}

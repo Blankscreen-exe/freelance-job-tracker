@@ -1,183 +1,106 @@
 {% extends "base.html" %}
+{% block title %}Expense Tracking{% endblock %}
+{% block page_title %}Expense Tracking{% endblock %}
 
 {% block content %}
-<h1 class="mb-4">Expense Tracking</h1>
-
-<!-- Date Filter Section -->
+<!-- Date Range Filter -->
 <div class="card mb-4">
     <div class="card-body">
-        <h5 class="card-title">Date Range Filter</h5>
-        <form method="GET" action="/expenses/tracking" class="row g-3">
-            <div class="col-md-3">
-                <label for="date_from" class="form-label">From Date</label>
-                <input type="date" class="form-control" id="date_from" name="date_from" value="{{ date_from }}">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small">From</label>
+                <input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from|date:'Y-m-d' }}">
             </div>
-            <div class="col-md-3">
-                <label for="date_to" class="form-label">To Date</label>
-                <input type="date" class="form-control" id="date_to" name="date_to" value="{{ date_to }}">
+            <div class="col-md-4">
+                <label class="form-label small">To</label>
+                <input type="date" name="date_to" class="form-control form-control-sm" value="{{ date_to|date:'Y-m-d' }}">
             </div>
-            <div class="col-md-6 d-flex align-items-end gap-2">
-                <button type="submit" class="btn btn-primary">Apply Filter</button>
-                <button type="button" class="btn btn-outline-secondary" onclick="setQuickFilter('this_month')">This Month</button>
-                <button type="button" class="btn btn-outline-secondary" onclick="setQuickFilter('last_month')">Last Month</button>
-                <button type="button" class="btn btn-outline-secondary" onclick="setQuickFilter('this_year')">This Year</button>
-                <button type="button" class="btn btn-outline-secondary" onclick="setQuickFilter('all_time')">All Time</button>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-sm btn-primary w-100">Update</button>
             </div>
         </form>
-        <small class="text-muted">Note: Expense and earnings calculations use the date filter.</small>
     </div>
 </div>
 
-<!-- Expense Summary Cards -->
-<div class="row mb-4">
-    <div class="col-md-2">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Total Expenses</h5>
-                <h3 class="text-danger">${{ "%.2f"|format(expense_totals) }}</h3>
-                <small class="text-muted">Current Period</small>
-            </div>
-        </div>
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card bg-success bg-opacity-10"><div class="card-body">
+            <small class="text-muted">Total Earnings</small>
+            <h4 class="text-success">${{ total_earnings|floatformat:2 }}</h4>
+        </div></div>
     </div>
-    <div class="col-md-2">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Total Earnings</h5>
-                <h3 class="text-success">${{ "%.2f"|format(earnings_total) }}</h3>
-                <small class="text-muted">Current Period</small>
-            </div>
-        </div>
+    <div class="col-md-4">
+        <div class="card bg-info bg-opacity-10"><div class="card-body">
+            <small class="text-muted">Owner Earnings</small>
+            <h4 class="text-info">${{ owner_earnings|floatformat:2 }}</h4>
+        </div></div>
     </div>
-    <div class="col-md-2">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">My Earnings</h5>
-                <h3 class="text-info">${{ "%.2f"|format(owner_earnings_total) }}</h3>
-                <small class="text-muted">Current Period</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Profit</h5>
-                <h3 class="{% if profit >= 0 %}text-primary{% else %}text-danger{% endif %}">${{ "%.2f"|format(profit) }}</h3>
-                <small class="text-muted">My Earnings - Expenses</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Margin</h5>
-                <h3 class="{% if margin >= 0 %}text-success{% else %}text-danger{% endif %}">{{ "%.1f"|format(margin) }}%</h3>
-                <small class="text-muted">Profit / My Earnings</small>
-            </div>
-        </div>
+    <div class="col-md-4">
+        <div class="card bg-danger bg-opacity-10"><div class="card-body">
+            <small class="text-muted">Total Expenses</small>
+            <h4 class="text-danger">${{ total_expenses|floatformat:2 }}</h4>
+        </div></div>
     </div>
 </div>
 
-<!-- Chart Section -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5>Expenses vs Earnings vs My Earnings</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="expenseChart" style="max-height: 400px;"></canvas>
-            </div>
-        </div>
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card {% if profit >= 0 %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10"><div class="card-body">
+            <small class="text-muted">Net Profit</small>
+            <h4 class="{% if profit >= 0 %}text-success{% else %}text-danger{% endif %}">${{ profit|floatformat:2 }}</h4>
+        </div></div>
+    </div>
+    <div class="col-md-6">
+        <div class="card"><div class="card-body">
+            <small class="text-muted">Profit Margin</small>
+            <h4>{{ margin|floatformat:1 }}%</h4>
+        </div></div>
     </div>
 </div>
+
+<!-- Chart -->
+<div class="card mb-4">
+    <div class="card-header"><h6 class="mb-0">Daily Breakdown</h6></div>
+    <div class="card-body">
+        <canvas id="trackingChart" height="100"></canvas>
+    </div>
+</div>
+
+<p class="text-muted">Period: {{ date_from|date:"M d, Y" }} — {{ date_to|date:"M d, Y" }}</p>
 {% endblock %}
 
-{% block scripts %}
-{{ super() }}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script>
-function setQuickFilter(filter) {
-    const today = new Date();
-    let fromDate, toDate;
-    
-    if (filter === 'this_month') {
-        fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
-        toDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    } else if (filter === 'last_month') {
-        fromDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        toDate = new Date(today.getFullYear(), today.getMonth(), 0);
-    } else if (filter === 'this_year') {
-        fromDate = new Date(today.getFullYear(), 0, 1);
-        toDate = new Date(today.getFullYear(), 11, 31);
-    } else if (filter === 'all_time') {
-        fromDate = null;
-        toDate = null;
-    }
-    
-    if (fromDate && toDate) {
-        document.getElementById('date_from').value = fromDate.toISOString().split('T')[0];
-        document.getElementById('date_to').value = toDate.toISOString().split('T')[0];
-    } else {
-        document.getElementById('date_from').value = '';
-        document.getElementById('date_to').value = '';
-    }
-    
-    // Submit the form
-    document.querySelector('form').submit();
-}
-
-// Initialize Chart.js
-const chartData = {{ chart_data|safe }};
-const ctx = document.getElementById('expenseChart').getContext('2d');
-
-new Chart(ctx, {
-    type: 'line',
+new Chart(document.getElementById('trackingChart'), {
+    type: 'bar',
     data: {
-        labels: chartData.labels,
+        labels: {{ chart_labels|safe }},
         datasets: [
             {
+                label: 'Earnings',
+                data: {{ chart_earnings|safe }},
+                backgroundColor: 'rgba(25, 135, 84, 0.6)',
+                borderColor: 'rgba(25, 135, 84, 1)',
+                borderWidth: 1,
+            },
+            {
                 label: 'Expenses',
-                data: chartData.expenses,
-                borderColor: 'rgb(220, 53, 69)',
-                backgroundColor: 'rgba(220, 53, 69, 0.1)',
-                tension: 0.1
+                data: {{ chart_expenses|safe }},
+                backgroundColor: 'rgba(220, 53, 69, 0.6)',
+                borderColor: 'rgba(220, 53, 69, 1)',
+                borderWidth: 1,
             },
-            {
-                label: 'Total Earnings',
-                data: chartData.earnings,
-                borderColor: 'rgb(25, 135, 84)',
-                backgroundColor: 'rgba(25, 135, 84, 0.1)',
-                tension: 0.1
-            },
-            {
-                label: 'My Earnings',
-                data: chartData.owner_earnings,
-                borderColor: 'rgb(13, 110, 253)',
-                backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                tension: 0.1
-            }
         ]
     },
     options: {
         responsive: true,
-        maintainAspectRatio: true,
         scales: {
-            y: {
-                beginAtZero: true,
-                ticks: {
-                    callback: function(value) {
-                        return '$' + value.toFixed(2);
-                    }
-                }
-            }
+            y: { beginAtZero: true, ticks: { callback: v => '$' + v } }
         },
         plugins: {
-            tooltip: {
-                callbacks: {
-                    label: function(context) {
-                        return context.dataset.label + ': $' + context.parsed.y.toFixed(2);
-                    }
-                }
-            }
+            tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': $' + ctx.raw.toFixed(2) } }
         }
     }
 });

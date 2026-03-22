@@ -1,45 +1,70 @@
 {% extends "base.html" %}
+{% block title %}{% if allocation %}Edit Allocation{% else %}Add Allocation{% endif %} - {{ job.job_code }}{% endblock %}
+{% block page_title %}{% if allocation %}Edit Allocation{% else %}Add Allocation{% endif %} for {{ job.job_code }}{% endblock %}
 
 {% block content %}
-<h1 class="mb-4">Edit Allocation</h1>
+<div class="row">
+    <div class="col-lg-6">
+        <form method="POST">
+            {% csrf_token %}
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Worker</label>
+                        <select name="worker" class="form-select">
+                            <option value="">Owner (You / No Worker)</option>
+                            {% for w in workers %}
+                            <option value="{{ w.id }}" {% if allocation and allocation.worker_id == w.id %}selected{% endif %}>
+                                {{ w.worker_code }} - {{ w.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">Leave empty for owner/admin share</small>
+                    </div>
 
-<form method="POST" action="/allocations/{{ allocation.id }}/edit">
-    <div class="mb-3">
-        <label for="worker_id" class="form-label">Worker (leave empty for admin/you)</label>
-        <select class="form-select" id="worker_id" name="worker_id">
-            <option value="None" {% if not allocation.worker_id %}selected{% endif %}>None (Admin/You)</option>
-            {% for worker in workers %}
-            <option value="{{ worker.id }}" {% if allocation.worker_id == worker.id %}selected{% endif %}>
-                {{ worker.name }} ({{ worker.worker_code }})
-            </option>
-            {% endfor %}
-        </select>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Label</label>
+                            <input type="text" name="label" class="form-control" placeholder="e.g. Dev, Design, YOU"
+                                   value="{{ allocation.label|default:'' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Role</label>
+                            <input type="text" name="role" class="form-control" placeholder="e.g. Frontend, Backend"
+                                   value="{{ allocation.role|default:'' }}">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <label class="form-label">Share Type <span class="text-danger">*</span></label>
+                            <select name="share_type" class="form-select">
+                                <option value="percent" {% if allocation.share_type == 'percent' %}selected{% endif %}>Percentage</option>
+                                <option value="fixed_amount" {% if allocation.share_type == 'fixed_amount' %}selected{% endif %}>Fixed Amount ($)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Share Value <span class="text-danger">*</span></label>
+                            <input type="number" name="share_value" class="form-control" step="0.0001" min="0" required
+                                   value="{{ allocation.share_value|default:'0' }}">
+                            <small class="form-text text-muted">For percent: use decimal (e.g. 0.50 = 50%)</small>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="form-label">Notes</label>
+                        <textarea name="notes" class="form-control" rows="2">{{ allocation.notes|default:'' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save"></i> {% if allocation %}Update{% else %}Add{% endif %} Allocation
+                </button>
+                <a href="{% url 'job_detail' job.pk %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
     </div>
-    <div class="mb-3">
-        <label for="label" class="form-label">Label *</label>
-        <input type="text" class="form-control" id="label" name="label" value="{{ allocation.label }}" required>
-    </div>
-    <div class="mb-3">
-        <label for="role" class="form-label">Role</label>
-        <input type="text" class="form-control" id="role" name="role" value="{{ allocation.role or '' }}">
-    </div>
-    <div class="mb-3">
-        <label for="share_type" class="form-label">Share Type *</label>
-        <select class="form-select" id="share_type" name="share_type" required>
-            <option value="percent" {% if allocation.share_type.value == "percent" %}selected{% endif %}>Percent</option>
-            <option value="fixed_amount" {% if allocation.share_type.value == "fixed_amount" %}selected{% endif %}>Fixed Amount</option>
-        </select>
-    </div>
-    <div class="mb-3">
-        <label for="share_value" class="form-label">Share Value *</label>
-        <input type="number" step="0.01" class="form-control" id="share_value" name="share_value" value="{{ allocation.share_value }}" required>
-        <small class="form-text text-muted">For percent, enter as decimal (e.g., 0.5 for 50%)</small>
-    </div>
-    <div class="mb-3">
-        <label for="notes" class="form-label">Notes</label>
-        <textarea class="form-control" id="notes" name="notes" rows="2">{{ allocation.notes or '' }}</textarea>
-    </div>
-    <button type="submit" class="btn btn-primary">Save</button>
-    <a href="/jobs/{{ job.id }}" class="btn btn-secondary">Cancel</a>
-</form>
+</div>
 {% endblock %}
