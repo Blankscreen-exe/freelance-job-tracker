@@ -1,7 +1,8 @@
 - **DONE** minio for profile picture and other asset support
 - payment gateway integration for payment support
 - email engine support, admin notifications, middleman emails, client emails(invoice notification), worker emails (payment notification)
-- as an admin i should be able to create users with only "worker" or "middleman" role, i should also be able to change roles for any existing user
+- **DONE** as an admin i should be able to create users with only "worker" or "middleman" role, i should also be able to change roles for any existing user
+- user listing should be of 2 types: clients and other types of users
 
 - workers should not see the clients list. they only see the following:
     - jobs (only which they are in)

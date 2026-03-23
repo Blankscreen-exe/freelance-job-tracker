@@ -409,6 +409,7 @@ class Expense(models.Model):
     vendor = models.CharField(max_length=200, blank=True, default='')
     reference = models.CharField(max_length=200, blank=True, default='')  # receipt/invoice number
     notes = models.TextField(blank=True, default='')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_expenses')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

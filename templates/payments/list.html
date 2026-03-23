@@ -4,14 +4,17 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>All Payments</h2>
+    <h2>{% if is_worker_view %}Your Payments{% else %}All Payments{% endif %}</h2>
+    {% if not is_worker_view %}
     <a href="{% url 'payment_create' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> New Payment</a>
+    {% endif %}
 </div>
 
 <!-- Filters -->
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
+            {% if not is_worker_view %}
             <div class="col-md-3">
                 <label class="form-label small">Worker</label>
                 <select name="worker" class="form-select form-select-sm">
@@ -21,6 +24,7 @@
                     {% endfor %}
                 </select>
             </div>
+            {% endif %}
             <div class="col-md-3">
                 <label class="form-label small">Job</label>
                 <select name="job" class="form-select form-select-sm">
@@ -47,12 +51,12 @@
 
 <div class="table-responsive">
     <table class="table table-hover">
-        <thead><tr><th>Code</th><th>Worker</th><th>Job</th><th>Amount</th><th>Date</th><th>Method</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Code</th>{% if not is_worker_view %}<th>Worker</th>{% endif %}<th>Job</th><th>Amount</th><th>Date</th><th>Method</th><th>Status</th>{% if not is_worker_view %}<th>Actions</th>{% endif %}</tr></thead>
         <tbody>
             {% for p in payments %}
             <tr>
                 <td><strong>{{ p.payment_code }}</strong></td>
-                <td><a href="{% url 'worker_detail' p.worker.pk %}">{{ p.worker.name }}</a></td>
+                {% if not is_worker_view %}<td><a href="{% url 'worker_detail' p.worker.pk %}">{{ p.worker.name }}</a></td>{% endif %}
                 <td>{% if p.job %}<a href="{% url 'job_detail' p.job.pk %}">{{ p.job.job_code }}</a>{% else %}-{% endif %}</td>
                 <td>${{ p.amount_paid|floatformat:2 }}</td>
                 <td>{{ p.paid_date|date:"M d, Y" }}</td>
@@ -61,6 +65,7 @@
                     {% if p.is_paid %}<span class="badge bg-success">Paid</span>{% else %}<span class="badge bg-warning text-dark">Pending</span>{% endif %}
                     {% if p.is_auto_generated %}<span class="badge bg-secondary">Auto</span>{% endif %}
                 </td>
+                {% if not is_worker_view %}
                 <td>
                     {% if p.is_paid %}
                     <form method="POST" action="{% url 'payment_mark_unpaid' p.pk %}" class="d-inline">
@@ -80,9 +85,10 @@
                         <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
                     </form>
                 </td>
+                {% endif %}
             </tr>
             {% empty %}
-            <tr><td colspan="8" class="text-center text-muted py-4">No payments yet. <a href="{% url 'payment_create' %}">Record one</a>.</td></tr>
+            <tr><td colspan="{% if is_worker_view %}6{% else %}8{% endif %}" class="text-center text-muted py-4">{% if is_worker_view %}No payments recorded for you yet.{% else %}No payments yet. <a href="{% url 'payment_create' %}">Record one</a>.{% endif %}</td></tr>
             {% endfor %}
         </tbody>
     </table>

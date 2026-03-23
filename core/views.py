@@ -27,12 +27,44 @@ from .services.reports import get_pnl_data, get_ledger_entries, pnl_to_csv_rows,
 @login_required
 def dashboard(request):
     visible = get_visible_jobs(request.user)
-    totals = get_dashboard_totals(visible)
     active_jobs = visible.filter(status='active').count()
     recent_jobs = visible.select_related('client')[:10]
 
-    # Top due workers
-    workers = Worker.objects.filter(is_archived=False)
+    is_worker = not request.user.is_admin_user() and request.user.active_role == 'worker'
+
+    if is_worker:
+        # Worker dashboard: show only their own earnings/payments
+        worker = getattr(request.user, 'worker_profile', None)
+        if worker:
+            wt = compute_worker_totals(worker)
+        else:
+            wt = {'earned': 0, 'paid': 0, 'due': 0}
+        return render(request, 'dashboard.html', {
+            'is_worker_view': True,
+            'is_middleman_view': False,
+            'worker_totals': wt,
+            'totals': {'active_jobs': active_jobs},
+            'recent_jobs': recent_jobs,
+            'top_due_workers': [],
+        })
+
+    is_middleman = not request.user.is_admin_user() and request.user.active_role == 'middleman'
+
+    # Admin / middleman dashboard
+    totals = get_dashboard_totals(visible)
+
+    # Top due workers — scoped to visible jobs for middlemen
+    if is_middleman:
+        visible_job_ids = visible.values_list('id', flat=True)
+        worker_ids = set(
+            JobAllocation.objects.filter(job_id__in=visible_job_ids).values_list('worker_id', flat=True)
+        ) | set(
+            Payment.objects.filter(job_id__in=visible_job_ids).values_list('worker_id', flat=True)
+        )
+        workers = Worker.objects.filter(id__in=worker_ids, is_archived=False)
+    else:
+        workers = Worker.objects.filter(is_archived=False)
+
     top_due = []
     for w in workers:
         wt = compute_worker_totals(w)
@@ -41,6 +73,8 @@ def dashboard(request):
     top_due.sort(key=lambda x: x['due'], reverse=True)
 
     return render(request, 'dashboard.html', {
+        'is_worker_view': False,
+        'is_middleman_view': is_middleman,
         'totals': {**totals, 'active_jobs': active_jobs},
         'recent_jobs': recent_jobs,
         'top_due_workers': top_due[:5],
@@ -447,13 +481,30 @@ def payment_list(request):
     if date_to:
         payments = payments.filter(paid_date__lte=date_to)
 
-    workers = Worker.objects.filter(is_archived=False)
-    jobs = Job.objects.exclude(status='archived')
+    is_worker = not request.user.is_admin_user() and request.user.active_role == 'worker'
+    is_middleman = not request.user.is_admin_user() and request.user.active_role == 'middleman'
+    if is_worker:
+        workers = Worker.objects.none()
+        jobs = get_visible_jobs(request.user)
+    elif is_middleman:
+        visible = get_visible_jobs(request.user)
+        visible_job_ids = visible.values_list('id', flat=True)
+        worker_ids = set(
+            JobAllocation.objects.filter(job_id__in=visible_job_ids).values_list('worker_id', flat=True)
+        ) | set(
+            Payment.objects.filter(job_id__in=visible_job_ids).values_list('worker_id', flat=True)
+        )
+        workers = Worker.objects.filter(id__in=worker_ids, is_archived=False)
+        jobs = visible
+    else:
+        workers = Worker.objects.filter(is_archived=False)
+        jobs = Job.objects.exclude(status='archived')
 
     return render(request, 'payments/list.html', {
         'payments': payments,
         'workers': workers,
         'jobs': jobs,
+        'is_worker_view': is_worker,
         'filters': {'worker': worker_id, 'job': job_id, 'date_from': date_from, 'date_to': date_to},
     })
 
@@ -1129,6 +1180,9 @@ def get_visible_jobs(user):
         )
         return base.filter(id__in=job_ids)
     if user.active_role == 'middleman':
+        middleman = getattr(user, 'middleman_profile', None)
+        if middleman:
+            return base.filter(Q(created_by=user) | Q(middleman=middleman)).distinct()
         return base.filter(created_by=user)
     return Job.objects.none()
 
@@ -1142,7 +1196,14 @@ from .models import Expense
 
 @login_required
 def expense_list(request):
+    if not request.user.is_admin_user() and request.user.active_role == 'worker':
+        messages.error(request, "Access restricted.")
+        return redirect('dashboard')
+
     expenses = Expense.objects.all()
+    if not request.user.is_admin_user() and request.user.active_role == 'middleman':
+        expenses = expenses.filter(created_by=request.user)
+
     category = request.GET.get('category')
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
@@ -1173,6 +1234,7 @@ def expense_create(request):
             vendor=request.POST.get('vendor', ''),
             reference=request.POST.get('reference', ''),
             notes=request.POST.get('notes', ''),
+            created_by=request.user,
         )
         messages.success(request, "Expense recorded.")
         return redirect('expense_list')
