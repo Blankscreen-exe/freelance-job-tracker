@@ -4,3 +4,4 @@ gunicorn==23.0.0
 django-storages[boto3]
 Pillow
 weasyprint
+whitenoise
