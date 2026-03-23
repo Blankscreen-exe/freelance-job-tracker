@@ -25,15 +25,25 @@
         }
         /* Override Bootstrap primary */
         .btn-primary { background-color: var(--app-primary) !important; border-color: var(--app-primary) !important; }
+        [data-bs-theme="dark"] .btn-primary { color: #1a1d21 !important; }
+        [data-bs-theme="light"] .btn-primary { color: #fff !important; }
         .btn-primary:hover { filter: brightness(0.9); background-color: var(--app-primary) !important; border-color: var(--app-primary) !important; }
         .btn-outline-primary { color: var(--app-primary) !important; border-color: var(--app-primary) !important; }
-        .btn-outline-primary:hover { background-color: var(--app-primary) !important; color: #fff !important; }
-        .bg-primary { background-color: var(--app-primary) !important; }
+        .btn-outline-primary:hover { background-color: var(--app-primary) !important; }
+        [data-bs-theme="dark"] .btn-outline-primary:hover { color: #1a1d21 !important; }
+        [data-bs-theme="light"] .btn-outline-primary:hover { color: #fff !important; }
         .text-primary { color: var(--app-primary) !important; }
-        .badge.bg-primary { background-color: var(--app-primary) !important; }
         a { color: var(--app-primary); }
         a:hover { color: var(--app-primary); filter: brightness(0.8); }
+        /* Badges — ensure text contrast */
+        .badge.bg-primary { background-color: var(--app-primary) !important; }
+        [data-bs-theme="dark"] .badge.bg-primary { color: #1a1d21 !important; }
+        [data-bs-theme="light"] .badge.bg-primary { color: #fff !important; }
         .badge.bg-secondary { background-color: var(--app-accent) !important; }
+        [data-bs-theme="dark"] .badge.bg-secondary { color: #1a1d21 !important; }
+        [data-bs-theme="light"] .badge.bg-secondary { color: #fff !important; }
+        /* Tinted cards — use rgba instead of bg-opacity which breaks with !important */
+        .bg-primary-subtle { background-color: color-mix(in srgb, var(--app-primary) 15%, transparent) !important; }
 
         .sidebar { min-height: 100vh; }
         .sidebar .nav-link { padding: 0.6rem 1rem; }
@@ -75,18 +85,40 @@
             border-color: #495057 !important;
             color: #fff;
         }
-        .top-bar .navbar-text { color: #adb5bd !important; }
-        .top-bar .theme-toggle { color: #adb5bd; }
+        [data-bs-theme="light"] .top-bar .navbar-text {
+            color: {% if BRANDING %}{{ BRANDING.sidebar_text_light }}{% else %}#adb5bd{% endif %} !important;
+        }
+        [data-bs-theme="dark"] .top-bar .navbar-text {
+            color: {% if BRANDING %}{{ BRANDING.sidebar_text_dark }}{% else %}#adb5bd{% endif %} !important;
+        }
+        [data-bs-theme="light"] .top-bar .theme-toggle {
+            color: {% if BRANDING %}{{ BRANDING.sidebar_text_light }}{% else %}#adb5bd{% endif %};
+        }
+        [data-bs-theme="dark"] .top-bar .theme-toggle {
+            color: {% if BRANDING %}{{ BRANDING.sidebar_text_dark }}{% else %}#adb5bd{% endif %};
+        }
         .top-bar .theme-toggle:hover { color: #fff; }
         .top-bar .badge { opacity: 0.9; }
 
         .theme-toggle { cursor: pointer; background: none; border: none; font-size: 1.2rem; }
 
-        /* Sidebar bottom section */
+        /* Sidebar bottom section — uses same text color as nav links */
         .sidebar .sidebar-bottom { border-color: rgba(255,255,255,0.1) !important; }
-        .sidebar .sidebar-bottom .text-sidebar { color: #adb5bd !important; }
+        [data-bs-theme="light"] .sidebar .sidebar-bottom .text-sidebar {
+            color: {% if BRANDING %}{{ BRANDING.sidebar_text_light }}{% else %}#adb5bd{% endif %} !important;
+        }
+        [data-bs-theme="dark"] .sidebar .sidebar-bottom .text-sidebar {
+            color: {% if BRANDING %}{{ BRANDING.sidebar_text_dark }}{% else %}#adb5bd{% endif %} !important;
+        }
         .sidebar .sidebar-bottom .text-sidebar:hover { color: #fff !important; }
-        .sidebar .sidebar-bottom .btn-sidebar { color: #adb5bd; border-color: rgba(255,255,255,0.2); background: transparent; }
+        [data-bs-theme="light"] .sidebar .sidebar-bottom .btn-sidebar {
+            color: {% if BRANDING %}{{ BRANDING.sidebar_text_light }}{% else %}#adb5bd{% endif %};
+            border-color: rgba(255,255,255,0.2); background: transparent;
+        }
+        [data-bs-theme="dark"] .sidebar .sidebar-bottom .btn-sidebar {
+            color: {% if BRANDING %}{{ BRANDING.sidebar_text_dark }}{% else %}#adb5bd{% endif %};
+            border-color: rgba(255,255,255,0.2); background: transparent;
+        }
         .sidebar .sidebar-bottom .btn-sidebar:hover { color: #fff; border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); }
 
         /* Footer */
@@ -186,7 +218,7 @@
                 </li>
                 {% endif %}
             </ul>
-
+<!-- TODO -->
             {% if user.is_authenticated %}
             <div class="p-3 sidebar-bottom border-top">
                 {% if not user.is_superuser and user.get_roles|length > 1 %}

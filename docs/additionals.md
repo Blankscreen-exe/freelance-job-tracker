@@ -21,10 +21,15 @@
 - **DONE** clients information will be stored in separate db tables. one for basic client details, one for their company details, one for their contact information etc
 - expose minio on a new domain tracker-minio.dev-in-trenches.com
 
-- make the app custommizable for the admin
+- **DONE** make the app custommizable for the admin
     - primary color setting will be shown whereever there is a primary color
     - app name, shown in the title and everywhere it is required can be replaced with a logo image of specific size
     - custom favicon
     - what else can we do?
 
-- light theme should show a dark color in the sidebar and the top navbar. similarly dark theme should show a slightly lighter sidebar and navbar
+- **DONE** light theme should show a dark color in the sidebar and the top navbar. similarly dark theme should show a slightly lighter sidebar and navbar
+
+- **DONE** why does the admi show active role = worker
+- **DONE** only admin should be able to see or manage "settings page" 
+
+- in some places we are using primary color for both bg and text in the dark theme, i saw this in a button, we need to fix that aesthetically and identify what other blunders like these are present
