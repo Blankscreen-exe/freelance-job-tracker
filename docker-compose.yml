@@ -93,7 +93,7 @@ services:
       - "traefik.http.routers.tracker.tls.certresolver=letsencrypt"
       - "traefik.http.routers.tracker.service=tracker"
       - "traefik.http.services.tracker.loadbalancer.server.port=8000"
-    command: ["sh", "-c", "python manage.py migrate && python manage.py shell -c \"from core.models import User; User.objects.filter(username='admin').exists() or User.objects.create_superuser('admin', '', 'admin')\" && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"]
+    command: ["sh", "-c", "python manage.py migrate && python manage.py shell -c \"from core.models import User, UserRole; exec('if not User.objects.filter(username=\\\"admin\\\").exists():\\n u = User.objects.create_superuser(\\\"admin\\\", \\\"\\\", \\\"admin\\\")\\n u.active_role = \\\"admin\\\"\\n u.save()\\n UserRole.objects.create(user=u, role=\\\"admin\\\")')\" && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"]
     networks:
       - internal
       - proxy
