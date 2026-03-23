@@ -37,7 +37,6 @@ services:
       - "traefik.http.routers.minio-api.entrypoints=websecure"
       - "traefik.http.routers.minio-api.tls.certresolver=letsencrypt"
       - "traefik.http.routers.minio-api.service=minio-api"
-      - "traefik.http.routers.minio-api.priority=2"
       - "traefik.http.routers.minio-api.middlewares=minio-strip"
       - "traefik.http.middlewares.minio-strip.stripprefix.prefixes=/s3"
       - "traefik.http.services.minio-api.loadbalancer.server.port=9000"
