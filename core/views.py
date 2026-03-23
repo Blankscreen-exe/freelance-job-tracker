@@ -654,20 +654,33 @@ def payment_mark_unpaid(request, pk):
 # Settings Versions
 # ──────────────────────────────────────────────
 
+def _admin_required(request):
+    if not request.user.is_admin_user():
+        messages.error(request, "Admin access required.")
+        return redirect('dashboard')
+    return None
+
+
 @login_required
 def settings_list(request):
+    r = _admin_required(request)
+    if r: return r
     versions = SettingsVersion.objects.all()
     return render(request, 'settings/list.html', {'versions': versions})
 
 
 @login_required
 def settings_detail(request, pk):
+    r = _admin_required(request)
+    if r: return r
     version = get_object_or_404(SettingsVersion, pk=pk)
     return render(request, 'settings/detail.html', {'version': version})
 
 
 @login_required
 def settings_create(request):
+    r = _admin_required(request)
+    if r: return r
     if request.method == 'POST':
         rules = {
             'currency_default': request.POST.get('currency_default', 'USD'),
@@ -693,6 +706,8 @@ def settings_create(request):
 
 @login_required
 def settings_activate(request, pk):
+    r = _admin_required(request)
+    if r: return r
     if request.method == 'POST':
         SettingsVersion.objects.update(is_active=False)
         sv = get_object_or_404(SettingsVersion, pk=pk)
@@ -704,6 +719,8 @@ def settings_activate(request, pk):
 
 @login_required
 def settings_clone(request, pk):
+    r = _admin_required(request)
+    if r: return r
     if request.method == 'POST':
         original = get_object_or_404(SettingsVersion, pk=pk)
         clone = SettingsVersion(
