@@ -980,31 +980,35 @@ def user_create(request):
         username = request.POST['username']
         email = request.POST.get('email', '')
         password = request.POST['password']
-        is_admin = request.POST.get('is_admin') == 'on'
+        selected_roles = request.POST.getlist('roles')
+
+        if not selected_roles:
+            messages.error(request, "Select at least one role.")
+            return render(request, 'users/form.html', {'user_obj': None})
 
         if User.objects.filter(username=username).exists():
             messages.error(request, f"Username '{username}' already exists.")
             return render(request, 'users/form.html', {'user_obj': None})
 
         user = User.objects.create_user(username=username, email=email, password=password)
-        user.active_role = 'admin' if is_admin else 'worker'
+        user.active_role = selected_roles[0]
         user.save()
 
-        if is_admin:
-            UserRole.objects.create(user=user, role='admin')
-        UserRole.objects.create(user=user, role='worker')
-        UserRole.objects.create(user=user, role='middleman')
+        for role in selected_roles:
+            UserRole.objects.create(user=user, role=role)
 
-        Worker.objects.create(
-            worker_code=_next_code(Worker, 'W'),
-            name=username, contact=email, user=user,
-        )
-        Middleman.objects.create(
-            middleman_code=_next_code(Middleman, 'M'),
-            name=username, email=email, user=user,
-        )
+        if 'worker' in selected_roles:
+            Worker.objects.create(
+                worker_code=_next_code(Worker, 'W'),
+                name=username, contact=email, user=user,
+            )
+        if 'middleman' in selected_roles:
+            Middleman.objects.create(
+                middleman_code=_next_code(Middleman, 'M'),
+                name=username, email=email, user=user,
+            )
 
-        messages.success(request, f"User '{username}' created with Worker and Middleman entities.")
+        messages.success(request, f"User '{username}' created.")
         return redirect('user_list')
 
     return render(request, 'users/form.html', {'user_obj': None})
@@ -1033,6 +1037,34 @@ def user_edit(request, pk):
         user_obj.email = request.POST.get('email', '')
         user_obj.is_active = request.POST.get('is_active') == 'on'
         user_obj.save()
+
+        selected_roles = request.POST.getlist('roles')
+        if selected_roles:
+            current_roles = set(user_obj.roles.values_list('role', flat=True))
+            new_roles = set(selected_roles)
+
+            # Add new roles
+            for role in new_roles - current_roles:
+                UserRole.objects.create(user=user_obj, role=role)
+                if role == 'worker' and not hasattr(user_obj, 'worker_profile'):
+                    Worker.objects.create(
+                        worker_code=_next_code(Worker, 'W'),
+                        name=user_obj.username, contact=user_obj.email, user=user_obj,
+                    )
+                elif role == 'middleman' and not hasattr(user_obj, 'middleman_profile'):
+                    Middleman.objects.create(
+                        middleman_code=_next_code(Middleman, 'M'),
+                        name=user_obj.username, email=user_obj.email, user=user_obj,
+                    )
+
+            # Remove old roles
+            user_obj.roles.filter(role__in=current_roles - new_roles).delete()
+
+            # Update active_role if it was removed
+            if user_obj.active_role not in new_roles:
+                user_obj.active_role = selected_roles[0]
+                user_obj.save()
+
         messages.success(request, f"User '{user_obj.username}' updated.")
         return redirect('user_detail', pk=pk)
     return render(request, 'users/form.html', {'user_obj': user_obj})

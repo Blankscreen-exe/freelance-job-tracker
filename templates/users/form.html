@@ -21,12 +21,21 @@
                 <label class="form-label">Email</label>
                 <input type="email" name="email" class="form-control" value="{{ user_obj.email|default:'' }}">
             </div>
-            {% if not user_obj %}
-            <div class="form-check mb-3">
-                <input class="form-check-input" type="checkbox" name="is_admin" id="isAdmin">
-                <label class="form-check-label" for="isAdmin">Admin user</label>
+            <div class="mb-3">
+                <label class="form-label">Roles <span class="text-danger">*</span></label>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="roles" value="worker" id="roleWorker"
+                           {% if user_obj and 'worker' in user_obj.get_roles %}checked{% endif %}
+                           {% if not user_obj %}checked{% endif %}>
+                    <label class="form-check-label" for="roleWorker">Worker</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="roles" value="middleman" id="roleMiddleman"
+                           {% if user_obj and 'middleman' in user_obj.get_roles %}checked{% endif %}>
+                    <label class="form-check-label" for="roleMiddleman">Middleman</label>
+                </div>
             </div>
-            {% else %}
+            {% if user_obj %}
             <div class="form-check mb-3">
                 <input class="form-check-input" type="checkbox" name="is_active" id="isActive"
                        {% if user_obj.is_active %}checked{% endif %}>
