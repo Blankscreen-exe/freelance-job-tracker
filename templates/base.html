@@ -68,10 +68,19 @@
             border-color: #495057 !important;
             color: #fff;
         }
-        [data-bs-theme="light"] .top-bar .navbar-text { color: #adb5bd; }
-        [data-bs-theme="light"] .top-bar .theme-toggle { color: #adb5bd; }
+        .top-bar .navbar-text { color: #adb5bd !important; }
+        .top-bar .theme-toggle { color: #adb5bd; }
+        .top-bar .theme-toggle:hover { color: #fff; }
+        .top-bar .badge { opacity: 0.9; }
 
         .theme-toggle { cursor: pointer; background: none; border: none; font-size: 1.2rem; }
+
+        /* Sidebar bottom section */
+        .sidebar .sidebar-bottom { border-color: rgba(255,255,255,0.1) !important; }
+        .sidebar .sidebar-bottom .text-sidebar { color: #adb5bd !important; }
+        .sidebar .sidebar-bottom .text-sidebar:hover { color: #fff !important; }
+        .sidebar .sidebar-bottom .btn-sidebar { color: #adb5bd; border-color: rgba(255,255,255,0.2); background: transparent; }
+        .sidebar .sidebar-bottom .btn-sidebar:hover { color: #fff; border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); }
 
         /* Footer */
         .app-footer { border-top: 1px solid rgba(128,128,128,0.2); }
@@ -90,7 +99,7 @@
     <div class="d-flex">
         <!-- Sidebar -->
         <nav class="sidebar border-end d-flex flex-column" style="width: 240px;">
-            <div class="p-3 border-bottom">
+            <div class="p-3 ">
                 <a href="/" class="text-decoration-none brand-link">
                     {% if BRANDING and BRANDING.logo %}
                     <img src="{{ BRANDING.logo.url }}" alt="{{ APP_NAME }}" style="max-height:40px; max-width:200px;">
@@ -172,7 +181,7 @@
             </ul>
 
             {% if user.is_authenticated %}
-            <div class="p-3 border-top">
+            <div class="p-3 sidebar-bottom border-top">
                 {% if not user.is_superuser and user.get_roles|length > 1 %}
                 <div class="mb-2">
                     <form method="POST" action="{% url 'switch_role' %}" class="d-flex gap-1">
@@ -180,7 +189,7 @@
                         {% for role in user.get_roles %}
                         {% if role != 'admin' %}
                         <button type="submit" name="role" value="{{ role }}"
-                                class="btn btn-sm {% if user.active_role == role %}btn-primary{% else %}btn-outline-secondary{% endif %} flex-fill">
+                                class="btn btn-sm {% if user.active_role == role %}btn-primary{% else %}btn-sidebar{% endif %} flex-fill">
                             {{ role|title }}
                         </button>
                         {% endif %}
@@ -189,7 +198,7 @@
                 </div>
                 {% endif %}
                 <div class="d-flex align-items-center justify-content-between">
-                    <a href="{% url 'profile' %}" class="text-decoration-none text-muted small d-flex align-items-center gap-1">
+                    <a href="{% url 'profile' %}" class="text-decoration-none text-sidebar small d-flex align-items-center gap-1">
                         {% if user.avatar %}
                         <img src="{{ user.avatar.url }}" class="rounded-circle" width="24" height="24" style="object-fit:cover;">
                         {% else %}
@@ -199,7 +208,7 @@
                     </a>
                     <form method="post" action="{% url 'logout' %}" class="d-inline">
                         {% csrf_token %}
-                        <button type="submit" class="btn btn-sm btn-outline-secondary">
+                        <button type="submit" class="btn btn-sm btn-sidebar">
                             <i class="bi bi-box-arrow-right"></i>
                         </button>
                     </form>
