@@ -64,20 +64,17 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link {% if '/team' in request.path or '/workers' in request.path or '/middlemen' in request.path %}active{% endif %}" href="/team/">
+                        <i class="bi bi-people"></i> Team Roster
+                    </a>
+                </li>
+                {% if user.is_superuser or user.active_role == 'middleman' or user.active_role == 'admin' %}
+                <li class="nav-item">
                     <a class="nav-link {% if '/clients' in request.path %}active{% endif %}" href="/clients/">
-                        <i class="bi bi-people"></i> Clients
+                        <i class="bi bi-person-badge"></i> Clients
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if '/middlemen' in request.path %}active{% endif %}" href="/middlemen/">
-                        <i class="bi bi-person-badge"></i> Middlemen
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if '/workers' in request.path %}active{% endif %}" href="/workers/">
-                        <i class="bi bi-person-workspace"></i> Workers
-                    </a>
-                </li>
+                {% endif %}
                 <li class="nav-item">
                     <a class="nav-link {% if '/payments' in request.path %}active{% endif %}" href="/payments/">
                         <i class="bi bi-cash-stack"></i> Payments

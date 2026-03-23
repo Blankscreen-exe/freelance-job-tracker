@@ -35,6 +35,9 @@ urlpatterns = [
     path('allocations/<int:pk>/edit/', views.allocation_edit, name='allocation_edit'),
     path('allocations/<int:pk>/delete/', views.allocation_delete, name='allocation_delete'),
 
+    # Team Roster (unified workers + middlemen)
+    path('team/', views.team_roster, name='team_roster'),
+
     # Clients
     path('clients/', views.client_list, name='client_list'),
     path('clients/new/', views.client_create, name='client_create'),
@@ -42,14 +45,12 @@ urlpatterns = [
     path('clients/<int:pk>/edit/', views.client_edit, name='client_edit'),
     path('clients/<int:pk>/archive/', views.client_archive, name='client_archive'),
 
-    # Middlemen
-    path('middlemen/', views.middleman_list, name='middleman_list'),
+    # Middlemen (detail/create/edit)
     path('middlemen/new/', views.middleman_create, name='middleman_create'),
     path('middlemen/<int:pk>/', views.middleman_detail, name='middleman_detail'),
     path('middlemen/<int:pk>/edit/', views.middleman_edit, name='middleman_edit'),
 
-    # Workers
-    path('workers/', views.worker_list, name='worker_list'),
+    # Workers (detail/create/edit/invoice/archive)
     path('workers/new/', views.worker_create, name='worker_create'),
     path('workers/<int:pk>/', views.worker_detail, name='worker_detail'),
     path('workers/<int:pk>/edit/', views.worker_edit, name='worker_edit'),

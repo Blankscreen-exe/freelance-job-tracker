@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Team Roster{% endblock %}
+{% block page_title %}Team Roster{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <form method="GET" class="d-flex gap-2 align-items-center">
+        <select name="role" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+            <option value="">All Roles</option>
+            <option value="worker" {% if role_filter == 'worker' %}selected{% endif %}>Workers</option>
+            <option value="middleman" {% if role_filter == 'middleman' %}selected{% endif %}>Middlemen</option>
+        </select>
+        <input type="text" name="q" class="form-control form-control-sm" placeholder="Search name..." value="{{ search }}" style="width:200px;">
+        <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-search"></i></button>
+        {% if role_filter or search %}
+        <a href="{% url 'team_roster' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
+        {% endif %}
+    </form>
+    <div class="d-flex gap-2">
+        <a href="{% url 'worker_create' %}" class="btn btn-sm btn-primary"><i class="bi bi-plus-circle"></i> New Worker</a>
+        <a href="{% url 'middleman_create' %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-circle"></i> New Middleman</a>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead><tr><th>Code</th><th>Role</th><th>Name</th><th>Contact</th><th>Actions</th></tr></thead>
+        <tbody>
+            {% for person in roster %}
+            <tr>
+                <td><strong>{{ person.code }}</strong></td>
+                <td>
+                    {% if person.role == 'worker' %}
+                    <span class="badge bg-info">Worker</span>
+                    {% else %}
+                    <span class="badge bg-warning text-dark">Middleman</span>
+                    {% endif %}
+                </td>
+                <td><a href="{% url person.detail_url person.pk %}">{{ person.name }}</a></td>
+                <td>{{ person.contact }}</td>
+                <td>
+                    <a href="{% url person.detail_url person.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+                    <a href="{% url person.edit_url person.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-4">No team members found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

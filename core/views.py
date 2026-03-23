@@ -222,8 +222,11 @@ def _populate_client_from_post(client, post):
 
 @login_required
 def client_list(request):
+    if not request.user.is_admin_user() and request.user.active_role != 'middleman':
+        messages.error(request, "Access restricted.")
+        return redirect('dashboard')
     clients = Client.objects.filter(is_archived=False)
-    if not request.user.is_admin_user() and request.user.active_role == 'middleman':
+    if not request.user.is_admin_user():
         clients = clients.filter(created_by=request.user)
     return render(request, 'clients/list.html', {'clients': clients})
 
@@ -264,9 +267,49 @@ def client_edit(request, pk):
 # ──────────────────────────────────────────────
 
 @login_required
-def middleman_list(request):
-    middlemen = Middleman.objects.filter(is_archived=False)
-    return render(request, 'middlemen/list.html', {'middlemen': middlemen})
+def team_roster(request):
+    role_filter = request.GET.get('role', '')
+    search = request.GET.get('q', '').strip()
+
+    roster = []
+
+    if role_filter in ('', 'worker'):
+        workers = Worker.objects.filter(is_archived=False)
+        if search:
+            workers = workers.filter(name__icontains=search)
+        for w in workers:
+            roster.append({
+                'role': 'worker',
+                'code': w.worker_code,
+                'name': w.name,
+                'contact': w.contact or '-',
+                'pk': w.pk,
+                'detail_url': 'worker_detail',
+                'edit_url': 'worker_edit',
+            })
+
+    if role_filter in ('', 'middleman'):
+        middlemen = Middleman.objects.filter(is_archived=False)
+        if search:
+            middlemen = middlemen.filter(name__icontains=search)
+        for m in middlemen:
+            roster.append({
+                'role': 'middleman',
+                'code': m.middleman_code,
+                'name': m.name,
+                'contact': m.email or m.phone or '-',
+                'pk': m.pk,
+                'detail_url': 'middleman_detail',
+                'edit_url': 'middleman_edit',
+            })
+
+    roster.sort(key=lambda x: x['name'].lower())
+
+    return render(request, 'team/roster.html', {
+        'roster': roster,
+        'role_filter': role_filter,
+        'search': search,
+    })
 
 
 @login_required
@@ -320,10 +363,6 @@ def middleman_edit(request, pk):
 # Workers
 # ──────────────────────────────────────────────
 
-@login_required
-def worker_list(request):
-    workers = Worker.objects.filter(is_archived=False)
-    return render(request, 'workers/list.html', {'workers': workers})
 
 
 @login_required
@@ -1253,7 +1292,7 @@ def worker_archive(request, pk):
         w.is_archived = True
         w.save()
         messages.success(request, f"Worker {w.worker_code} archived.")
-    return redirect('worker_list')
+    return redirect('team_roster')
 
 
 @login_required
