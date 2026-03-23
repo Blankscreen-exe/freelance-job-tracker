@@ -476,9 +476,13 @@ class AppSettings(models.Model):
     footer_text = models.CharField(max_length=300, blank=True, default='')
     show_footer = models.BooleanField(default=False)
 
-    # Colors
-    primary_color = models.CharField(max_length=7, default='#0d6efd')
-    accent_color = models.CharField(max_length=7, default='#6c757d')
+    # Colors (light theme)
+    primary_color_light = models.CharField(max_length=7, default='#0d6efd')
+    accent_color_light = models.CharField(max_length=7, default='#6c757d')
+
+    # Colors (dark theme)
+    primary_color_dark = models.CharField(max_length=7, default='#0d6efd')
+    accent_color_dark = models.CharField(max_length=7, default='#6c757d')
 
     # Sidebar & navbar (light theme)
     sidebar_bg_light = models.CharField(max_length=7, default='#212529')

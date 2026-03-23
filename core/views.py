@@ -745,8 +745,10 @@ def branding_settings(request):
         branding.app_name = request.POST.get('app_name', branding.app_name)
         branding.footer_text = request.POST.get('footer_text', '')
         branding.show_footer = request.POST.get('show_footer') == 'on'
-        branding.primary_color = request.POST.get('primary_color', '#0d6efd')
-        branding.accent_color = request.POST.get('accent_color', '#6c757d')
+        branding.primary_color_light = request.POST.get('primary_color_light', '#0d6efd')
+        branding.accent_color_light = request.POST.get('accent_color_light', '#6c757d')
+        branding.primary_color_dark = request.POST.get('primary_color_dark', '#0d6efd')
+        branding.accent_color_dark = request.POST.get('accent_color_dark', '#6c757d')
         branding.sidebar_bg_light = request.POST.get('sidebar_bg_light', '#212529')
         branding.sidebar_text_light = request.POST.get('sidebar_text_light', '#adb5bd')
         branding.topbar_bg_light = request.POST.get('topbar_bg_light', '#212529')

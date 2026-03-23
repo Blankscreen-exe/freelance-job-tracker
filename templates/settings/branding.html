@@ -50,24 +50,49 @@
         </div>
     </div>
 
-    <!-- Colors -->
+    <!-- Colors - Light Theme -->
     <div class="card mb-3">
-        <div class="card-header"><h6 class="mb-0">Colors</h6></div>
+        <div class="card-header"><h6 class="mb-0">Colors - Light Theme</h6></div>
         <div class="card-body">
             <div class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label">Primary Color</label>
                     <div class="d-flex gap-2">
-                        <input type="color" name="primary_color" value="{{ branding.primary_color }}" class="form-control form-control-color" id="inp_primary_color">
-                        <input type="text" class="form-control form-control-sm color-text" data-for="inp_primary_color" value="{{ branding.primary_color }}" readonly style="width:90px;">
+                        <input type="color" name="primary_color_light" value="{{ branding.primary_color_light }}" class="form-control form-control-color" id="inp_primary_color_light">
+                        <input type="text" class="form-control form-control-sm color-text" data-for="inp_primary_color_light" value="{{ branding.primary_color_light }}" readonly style="width:90px;">
                     </div>
                     <small class="text-muted">Buttons, links, active badges</small>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Accent Color</label>
                     <div class="d-flex gap-2">
-                        <input type="color" name="accent_color" value="{{ branding.accent_color }}" class="form-control form-control-color" id="inp_accent_color">
-                        <input type="text" class="form-control form-control-sm color-text" data-for="inp_accent_color" value="{{ branding.accent_color }}" readonly style="width:90px;">
+                        <input type="color" name="accent_color_light" value="{{ branding.accent_color_light }}" class="form-control form-control-color" id="inp_accent_color_light">
+                        <input type="text" class="form-control form-control-sm color-text" data-for="inp_accent_color_light" value="{{ branding.accent_color_light }}" readonly style="width:90px;">
+                    </div>
+                    <small class="text-muted">Secondary badges, hover states</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Colors - Dark Theme -->
+    <div class="card mb-3">
+        <div class="card-header"><h6 class="mb-0">Colors - Dark Theme</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Primary Color</label>
+                    <div class="d-flex gap-2">
+                        <input type="color" name="primary_color_dark" value="{{ branding.primary_color_dark }}" class="form-control form-control-color" id="inp_primary_color_dark">
+                        <input type="text" class="form-control form-control-sm color-text" data-for="inp_primary_color_dark" value="{{ branding.primary_color_dark }}" readonly style="width:90px;">
+                    </div>
+                    <small class="text-muted">Buttons, links, active badges</small>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Accent Color</label>
+                    <div class="d-flex gap-2">
+                        <input type="color" name="accent_color_dark" value="{{ branding.accent_color_dark }}" class="form-control form-control-color" id="inp_accent_color_dark">
+                        <input type="text" class="form-control form-control-sm color-text" data-for="inp_accent_color_dark" value="{{ branding.accent_color_dark }}" readonly style="width:90px;">
                     </div>
                     <small class="text-muted">Secondary badges, hover states</small>
                 </div>
@@ -181,7 +206,8 @@
 const PRESETS = [
     {
         name: 'Default',
-        primary_color: '#0d6efd', accent_color: '#6c757d',
+        primary_color_light: '#0d6efd', accent_color_light: '#6c757d',
+        primary_color_dark: '#0d6efd', accent_color_dark: '#6c757d',
         sidebar_bg_light: '#212529', sidebar_text_light: '#adb5bd', topbar_bg_light: '#212529',
         sidebar_bg_dark: '#1a1d21', sidebar_text_dark: '#adb5bd', topbar_bg_dark: '#1a1d21',
         login_bg_color: '#212529',
@@ -189,7 +215,8 @@ const PRESETS = [
     },
     {
         name: 'Ocean',
-        primary_color: '#0ea5e9', accent_color: '#06b6d4',
+        primary_color_light: '#0284c7', accent_color_light: '#0891b2',
+        primary_color_dark: '#38bdf8', accent_color_dark: '#22d3ee',
         sidebar_bg_light: '#0c4a6e', sidebar_text_light: '#bae6fd', topbar_bg_light: '#0c4a6e',
         sidebar_bg_dark: '#082f49', sidebar_text_dark: '#7dd3fc', topbar_bg_dark: '#082f49',
         login_bg_color: '#0c4a6e',
@@ -197,7 +224,8 @@ const PRESETS = [
     },
     {
         name: 'Forest',
-        primary_color: '#16a34a', accent_color: '#65a30d',
+        primary_color_light: '#15803d', accent_color_light: '#4d7c0f',
+        primary_color_dark: '#4ade80', accent_color_dark: '#a3e635',
         sidebar_bg_light: '#14532d', sidebar_text_light: '#bbf7d0', topbar_bg_light: '#14532d',
         sidebar_bg_dark: '#052e16', sidebar_text_dark: '#86efac', topbar_bg_dark: '#052e16',
         login_bg_color: '#14532d',
@@ -205,7 +233,8 @@ const PRESETS = [
     },
     {
         name: 'Sunset',
-        primary_color: '#ea580c', accent_color: '#d97706',
+        primary_color_light: '#c2410c', accent_color_light: '#a16207',
+        primary_color_dark: '#fb923c', accent_color_dark: '#fbbf24',
         sidebar_bg_light: '#431407', sidebar_text_light: '#fed7aa', topbar_bg_light: '#431407',
         sidebar_bg_dark: '#27130a', sidebar_text_dark: '#fdba74', topbar_bg_dark: '#27130a',
         login_bg_color: '#431407',
@@ -213,7 +242,8 @@ const PRESETS = [
     },
     {
         name: 'Royal',
-        primary_color: '#7c3aed', accent_color: '#a855f7',
+        primary_color_light: '#6d28d9', accent_color_light: '#9333ea',
+        primary_color_dark: '#a78bfa', accent_color_dark: '#c084fc',
         sidebar_bg_light: '#2e1065', sidebar_text_light: '#ddd6fe', topbar_bg_light: '#2e1065',
         sidebar_bg_dark: '#1e0a47', sidebar_text_dark: '#c4b5fd', topbar_bg_dark: '#1e0a47',
         login_bg_color: '#2e1065',
@@ -221,7 +251,8 @@ const PRESETS = [
     },
     {
         name: 'Rose',
-        primary_color: '#e11d48', accent_color: '#f43f5e',
+        primary_color_light: '#be123c', accent_color_light: '#e11d48',
+        primary_color_dark: '#fb7185', accent_color_dark: '#fda4af',
         sidebar_bg_light: '#4c0519', sidebar_text_light: '#fecdd3', topbar_bg_light: '#4c0519',
         sidebar_bg_dark: '#300211', sidebar_text_dark: '#fda4af', topbar_bg_dark: '#300211',
         login_bg_color: '#4c0519',
@@ -229,7 +260,8 @@ const PRESETS = [
     },
     {
         name: 'Slate',
-        primary_color: '#3b82f6', accent_color: '#64748b',
+        primary_color_light: '#2563eb', accent_color_light: '#475569',
+        primary_color_dark: '#60a5fa', accent_color_dark: '#94a3b8',
         sidebar_bg_light: '#1e293b', sidebar_text_light: '#94a3b8', topbar_bg_light: '#1e293b',
         sidebar_bg_dark: '#0f172a', sidebar_text_dark: '#94a3b8', topbar_bg_dark: '#0f172a',
         login_bg_color: '#1e293b',
@@ -237,7 +269,8 @@ const PRESETS = [
     },
     {
         name: 'Amber',
-        primary_color: '#d97706', accent_color: '#b45309',
+        primary_color_light: '#b45309', accent_color_light: '#92400e',
+        primary_color_dark: '#fbbf24', accent_color_dark: '#f59e0b',
         sidebar_bg_light: '#451a03', sidebar_text_light: '#fde68a', topbar_bg_light: '#451a03',
         sidebar_bg_dark: '#2a1000', sidebar_text_dark: '#fcd34d', topbar_bg_dark: '#2a1000',
         login_bg_color: '#451a03',
@@ -245,7 +278,8 @@ const PRESETS = [
     },
     {
         name: 'Teal',
-        primary_color: '#0d9488', accent_color: '#14b8a6',
+        primary_color_light: '#0f766e', accent_color_light: '#0d9488',
+        primary_color_dark: '#2dd4bf', accent_color_dark: '#5eead4',
         sidebar_bg_light: '#134e4a', sidebar_text_light: '#99f6e4', topbar_bg_light: '#134e4a',
         sidebar_bg_dark: '#042f2e', sidebar_text_dark: '#5eead4', topbar_bg_dark: '#042f2e',
         login_bg_color: '#134e4a',
@@ -253,7 +287,8 @@ const PRESETS = [
     },
     {
         name: 'Midnight',
-        primary_color: '#6366f1', accent_color: '#818cf8',
+        primary_color_light: '#4f46e5', accent_color_light: '#6366f1',
+        primary_color_dark: '#a5b4fc', accent_color_dark: '#c7d2fe',
         sidebar_bg_light: '#1e1b4b', sidebar_text_light: '#c7d2fe', topbar_bg_light: '#1e1b4b',
         sidebar_bg_dark: '#0f0e2a', sidebar_text_dark: '#a5b4fc', topbar_bg_dark: '#0f0e2a',
         login_bg_color: '#1e1b4b',
@@ -262,7 +297,8 @@ const PRESETS = [
 ];
 
 const COLOR_FIELDS = [
-    'primary_color', 'accent_color',
+    'primary_color_light', 'accent_color_light',
+    'primary_color_dark', 'accent_color_dark',
     'sidebar_bg_light', 'sidebar_text_light', 'topbar_bg_light',
     'sidebar_bg_dark', 'sidebar_text_dark', 'topbar_bg_dark',
     'login_bg_color'
