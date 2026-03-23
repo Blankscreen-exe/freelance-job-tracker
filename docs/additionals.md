@@ -18,7 +18,7 @@
     - p&l report and ledger (only about themselves)
     - other users
 
-- clients information will be stored in separate db tables. one for basic client details, one for their company details, one for their contact information etc
+- **DONE** clients information will be stored in separate db tables. one for basic client details, one for their company details, one for their contact information etc
 - expose minio on a new domain tracker-minio.dev-in-trenches.com
 
 - make the app custommizable for the admin

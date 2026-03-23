@@ -718,6 +718,44 @@ def settings_clone(request, pk):
     return redirect('settings_detail', pk=pk)
 
 
+@login_required
+def branding_settings(request):
+    if not request.user.is_admin_user():
+        return redirect('dashboard')
+    from .models import AppSettings
+    branding = AppSettings.get()
+    if request.method == 'POST':
+        branding.app_name = request.POST.get('app_name', branding.app_name)
+        branding.footer_text = request.POST.get('footer_text', '')
+        branding.show_footer = request.POST.get('show_footer') == 'on'
+        branding.primary_color = request.POST.get('primary_color', '#0d6efd')
+        branding.accent_color = request.POST.get('accent_color', '#6c757d')
+        branding.sidebar_bg_light = request.POST.get('sidebar_bg_light', '#212529')
+        branding.sidebar_text_light = request.POST.get('sidebar_text_light', '#adb5bd')
+        branding.topbar_bg_light = request.POST.get('topbar_bg_light', '#212529')
+        branding.sidebar_bg_dark = request.POST.get('sidebar_bg_dark', '#1a1d21')
+        branding.sidebar_text_dark = request.POST.get('sidebar_text_dark', '#adb5bd')
+        branding.topbar_bg_dark = request.POST.get('topbar_bg_dark', '#1a1d21')
+        branding.login_bg_color = request.POST.get('login_bg_color', '#212529')
+        branding.default_theme = request.POST.get('default_theme', 'dark')
+        if request.FILES.get('logo'):
+            branding.logo = request.FILES['logo']
+        if request.POST.get('clear_logo'):
+            branding.logo = None
+        if request.FILES.get('favicon'):
+            branding.favicon = request.FILES['favicon']
+        if request.POST.get('clear_favicon'):
+            branding.favicon = None
+        if request.FILES.get('login_bg_image'):
+            branding.login_bg_image = request.FILES['login_bg_image']
+        if request.POST.get('clear_login_bg_image'):
+            branding.login_bg_image = None
+        branding.save()
+        messages.success(request, "Branding settings updated.")
+        return redirect('branding_settings')
+    return render(request, 'settings/branding.html', {'branding': branding})
+
+
 # ──────────────────────────────────────────────
 # Receipts (nested under jobs)
 # ──────────────────────────────────────────────

@@ -462,3 +462,49 @@ class Expense(models.Model):
 
     def __str__(self):
         return f"{self.expense_code} - {self.description} ({self.amount})"
+
+
+# ──────────────────────────────────────────────
+# App Settings (singleton branding & theming)
+# ──────────────────────────────────────────────
+
+class AppSettings(models.Model):
+    # Branding
+    app_name = models.CharField(max_length=100, default='Job Tracker')
+    logo = models.ImageField(upload_to='branding/', blank=True, null=True)
+    favicon = models.ImageField(upload_to='branding/', blank=True, null=True)
+    footer_text = models.CharField(max_length=300, blank=True, default='')
+    show_footer = models.BooleanField(default=False)
+
+    # Colors
+    primary_color = models.CharField(max_length=7, default='#0d6efd')
+    accent_color = models.CharField(max_length=7, default='#6c757d')
+
+    # Sidebar & navbar (light theme)
+    sidebar_bg_light = models.CharField(max_length=7, default='#212529')
+    sidebar_text_light = models.CharField(max_length=7, default='#adb5bd')
+    topbar_bg_light = models.CharField(max_length=7, default='#212529')
+
+    # Sidebar & navbar (dark theme)
+    sidebar_bg_dark = models.CharField(max_length=7, default='#1a1d21')
+    sidebar_text_dark = models.CharField(max_length=7, default='#adb5bd')
+    topbar_bg_dark = models.CharField(max_length=7, default='#1a1d21')
+
+    # Login page
+    login_bg_color = models.CharField(max_length=7, default='#212529')
+    login_bg_image = models.ImageField(upload_to='branding/', blank=True, null=True)
+
+    # Default theme
+    default_theme = models.CharField(max_length=10, default='dark', choices=[('dark', 'Dark'), ('light', 'Light')])
+
+    class Meta:
+        verbose_name = 'App Settings'
+        verbose_name_plural = 'App Settings'
+
+    def __str__(self):
+        return 'App Settings'
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj

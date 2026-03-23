@@ -85,4 +85,5 @@ urlpatterns = [
     path('settings/<int:pk>/', views.settings_detail, name='settings_detail'),
     path('settings/<int:pk>/activate/', views.settings_activate, name='settings_activate'),
     path('settings/<int:pk>/clone/', views.settings_clone, name='settings_clone'),
+    path('settings/branding/', views.branding_settings, name='branding_settings'),
 ]

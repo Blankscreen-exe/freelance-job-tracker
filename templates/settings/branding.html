@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Branding Settings{% endblock %}
+{% block page_title %}Branding & Appearance{% endblock %}
+
+{% block content %}
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="row"><div class="col-lg-10">
+
+    <!-- Identity -->
+    <div class="card mb-3">
+        <div class="card-header"><h6 class="mb-0">Identity</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">App Name</label>
+                    <input type="text" name="app_name" class="form-control" value="{{ branding.app_name }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Logo (replaces name)</label>
+                    <input type="file" name="logo" class="form-control form-control-sm" accept="image/*">
+                    {% if branding.logo %}
+                    <div class="mt-1 d-flex align-items-center gap-2">
+                        <img src="{{ branding.logo.url }}" height="30">
+                        <label class="form-check-label small"><input type="checkbox" name="clear_logo" value="1"> Remove</label>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Favicon</label>
+                    <input type="file" name="favicon" class="form-control form-control-sm" accept="image/*">
+                    {% if branding.favicon %}
+                    <div class="mt-1 d-flex align-items-center gap-2">
+                        <img src="{{ branding.favicon.url }}" height="20">
+                        <label class="form-check-label small"><input type="checkbox" name="clear_favicon" value="1"> Remove</label>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Colors -->
+    <div class="card mb-3">
+        <div class="card-header"><h6 class="mb-0">Colors</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Primary Color</label>
+                    <div class="d-flex gap-2">
+                        <input type="color" name="primary_color" value="{{ branding.primary_color }}" class="form-control form-control-color">
+                        <input type="text" class="form-control form-control-sm" value="{{ branding.primary_color }}" readonly style="width:90px;">
+                    </div>
+                    <small class="text-muted">Buttons, links, active badges</small>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Accent Color</label>
+                    <div class="d-flex gap-2">
+                        <input type="color" name="accent_color" value="{{ branding.accent_color }}" class="form-control form-control-color">
+                        <input type="text" class="form-control form-control-sm" value="{{ branding.accent_color }}" readonly style="width:90px;">
+                    </div>
+                    <small class="text-muted">Secondary badges, hover states</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar & Navbar (Light Theme) -->
+    <div class="card mb-3">
+        <div class="card-header"><h6 class="mb-0">Sidebar & Navbar - Light Theme</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Sidebar Background</label>
+                    <input type="color" name="sidebar_bg_light" value="{{ branding.sidebar_bg_light }}" class="form-control form-control-color">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Sidebar Text</label>
+                    <input type="color" name="sidebar_text_light" value="{{ branding.sidebar_text_light }}" class="form-control form-control-color">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Top Bar Background</label>
+                    <input type="color" name="topbar_bg_light" value="{{ branding.topbar_bg_light }}" class="form-control form-control-color">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar & Navbar (Dark Theme) -->
+    <div class="card mb-3">
+        <div class="card-header"><h6 class="mb-0">Sidebar & Navbar - Dark Theme</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Sidebar Background</label>
+                    <input type="color" name="sidebar_bg_dark" value="{{ branding.sidebar_bg_dark }}" class="form-control form-control-color">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Sidebar Text</label>
+                    <input type="color" name="sidebar_text_dark" value="{{ branding.sidebar_text_dark }}" class="form-control form-control-color">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Top Bar Background</label>
+                    <input type="color" name="topbar_bg_dark" value="{{ branding.topbar_bg_dark }}" class="form-control form-control-color">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Page -->
+    <div class="card mb-3">
+        <div class="card-header"><h6 class="mb-0">Login Page</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Background Color</label>
+                    <input type="color" name="login_bg_color" value="{{ branding.login_bg_color }}" class="form-control form-control-color">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Background Image</label>
+                    <input type="file" name="login_bg_image" class="form-control form-control-sm" accept="image/*">
+                    {% if branding.login_bg_image %}
+                    <div class="mt-1 d-flex align-items-center gap-2">
+                        <img src="{{ branding.login_bg_image.url }}" height="40" style="border-radius:4px;">
+                        <label class="form-check-label small"><input type="checkbox" name="clear_login_bg_image" value="1"> Remove</label>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Default Theme</label>
+                    <select name="default_theme" class="form-select form-select-sm">
+                        <option value="dark" {% if branding.default_theme == 'dark' %}selected{% endif %}>Dark</option>
+                        <option value="light" {% if branding.default_theme == 'light' %}selected{% endif %}>Light</option>
+                    </select>
+                    <small class="text-muted">For new visitors</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="card mb-3">
+        <div class="card-header"><h6 class="mb-0">Footer</h6></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-1">
+                    <div class="form-check mt-4">
+                        <input class="form-check-input" type="checkbox" name="show_footer" id="showFooter" {% if branding.show_footer %}checked{% endif %}>
+                        <label class="form-check-label" for="showFooter">Show</label>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label">Footer Text</label>
+                    <input type="text" name="footer_text" class="form-control" value="{{ branding.footer_text }}" placeholder="e.g. Powered by YourAgency">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Save Branding</button>
+        <a href="{% url 'settings_list' %}" class="btn btn-secondary">Back to Settings</a>
+    </div>
+
+    </div></div>
+</form>
+{% endblock %}
