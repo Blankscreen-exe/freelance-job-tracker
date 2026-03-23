@@ -51,55 +51,18 @@ class Client(models.Model):
     name = models.CharField(max_length=200)
 
     # Source info
-    source = models.CharField(max_length=100, blank=True, default='')  # upwork, referral, etc.
+    source = models.CharField(max_length=100, blank=True, default='')
     source_url = models.URLField(max_length=500, blank=True, default='')
     source_notes = models.TextField(blank=True, default='')
-
-    # Primary contact
-    contact_person = models.CharField(max_length=200, blank=True, default='')
-    email = models.EmailField(blank=True, default='')
-    phone = models.CharField(max_length=50, blank=True, default='')
-    mobile = models.CharField(max_length=50, blank=True, default='')
-
-    # Additional contacts
-    alternative_email = models.EmailField(blank=True, default='')
-    alternative_phone = models.CharField(max_length=50, blank=True, default='')
-    telegram = models.CharField(max_length=100, blank=True, default='')
-    whatsapp = models.CharField(max_length=50, blank=True, default='')
-    skype = models.CharField(max_length=100, blank=True, default='')
-    linkedin = models.URLField(max_length=500, blank=True, default='')
-    other_contact = models.CharField(max_length=200, blank=True, default='')
-
-    # Company info
-    company = models.CharField(max_length=200, blank=True, default='')
-    company_registration = models.CharField(max_length=100, blank=True, default='')
-    company_website = models.URLField(max_length=500, blank=True, default='')
-    company_email = models.EmailField(blank=True, default='')
-
-    # Address
-    address_line1 = models.CharField(max_length=300, blank=True, default='')
-    address_line2 = models.CharField(max_length=300, blank=True, default='')
-    city = models.CharField(max_length=100, blank=True, default='')
-    state_province = models.CharField(max_length=100, blank=True, default='')
-    postal_code = models.CharField(max_length=20, blank=True, default='')
-    country = models.CharField(max_length=100, blank=True, default='')
-    timezone = models.CharField(max_length=50, blank=True, default='')
-
-    # Additional info
-    industry = models.CharField(max_length=100, blank=True, default='')
-    company_size = models.CharField(max_length=50, blank=True, default='')
-    preferred_communication = models.CharField(max_length=50, blank=True, default='')
-    working_hours = models.CharField(max_length=100, blank=True, default='')
 
     # Notes
     notes = models.TextField(blank=True, default='')
     internal_notes = models.TextField(blank=True, default='')
-    tags = models.CharField(max_length=500, blank=True, default='')  # comma-separated
+    tags = models.CharField(max_length=500, blank=True, default='')
 
     # Status
     is_archived = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
-    last_contacted = models.DateTimeField(null=True, blank=True)
 
     # Ownership
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_clients')
@@ -111,6 +74,87 @@ class Client(models.Model):
 
     def __str__(self):
         return f"{self.client_code} - {self.name}"
+
+    def primary_email(self):
+        c = self.contacts.filter(contact_type='email', is_primary=True).first()
+        return c.value if c else ''
+
+    def primary_company(self):
+        c = self.companies.filter(is_current=True).first()
+        return c.company_name if c else ''
+
+
+class ClientContact(models.Model):
+    class ContactType(models.TextChoices):
+        EMAIL = 'email', 'Email'
+        PHONE = 'phone', 'Phone'
+        MOBILE = 'mobile', 'Mobile'
+        TELEGRAM = 'telegram', 'Telegram'
+        WHATSAPP = 'whatsapp', 'WhatsApp'
+        SKYPE = 'skype', 'Skype'
+        LINKEDIN = 'linkedin', 'LinkedIn'
+        OTHER = 'other', 'Other'
+
+    class Label(models.TextChoices):
+        WORK = 'work', 'Work'
+        PERSONAL = 'personal', 'Personal'
+        OTHER = 'other', 'Other'
+
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='contacts')
+    contact_type = models.CharField(max_length=20, choices=ContactType.choices)
+    value = models.CharField(max_length=300)
+    label = models.CharField(max_length=20, choices=Label.choices, default=Label.WORK)
+    is_primary = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-is_primary', 'contact_type']
+
+    def __str__(self):
+        return f"{self.get_contact_type_display()}: {self.value}"
+
+
+class ClientCompany(models.Model):
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='companies')
+    company_name = models.CharField(max_length=200)
+    role = models.CharField(max_length=200, blank=True, default='')
+    website = models.URLField(max_length=500, blank=True, default='')
+    registration = models.CharField(max_length=100, blank=True, default='')
+    industry = models.CharField(max_length=100, blank=True, default='')
+    size = models.CharField(max_length=50, blank=True, default='')
+    is_current = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['-is_current', 'company_name']
+        verbose_name_plural = 'client companies'
+
+    def __str__(self):
+        return f"{self.company_name} ({self.role})" if self.role else self.company_name
+
+
+class ClientAddress(models.Model):
+    class Label(models.TextChoices):
+        OFFICE = 'office', 'Office'
+        HOME = 'home', 'Home'
+        OTHER = 'other', 'Other'
+
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='addresses')
+    label = models.CharField(max_length=20, choices=Label.choices, default=Label.OFFICE)
+    address_line1 = models.CharField(max_length=300, blank=True, default='')
+    address_line2 = models.CharField(max_length=300, blank=True, default='')
+    city = models.CharField(max_length=100, blank=True, default='')
+    state = models.CharField(max_length=100, blank=True, default='')
+    postal_code = models.CharField(max_length=20, blank=True, default='')
+    country = models.CharField(max_length=100, blank=True, default='')
+    timezone = models.CharField(max_length=50, blank=True, default='')
+    is_primary = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-is_primary', 'label']
+        verbose_name_plural = 'client addresses'
+
+    def __str__(self):
+        parts = [p for p in [self.city, self.country] if p]
+        return f"{self.get_label_display()}: {', '.join(parts)}" if parts else self.get_label_display()
 
 
 # ──────────────────────────────────────────────

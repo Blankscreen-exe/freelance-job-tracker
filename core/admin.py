@@ -1,7 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import (
-    User, UserRole, Client, Middleman, Worker,
+    User, UserRole, Client, ClientContact, ClientCompany, ClientAddress,
+    Middleman, Worker,
     SettingsVersion, Job, Receipt, JobAllocation,
     Payment, JobCalculationSnapshot, ReceiptDistribution, Expense,
 )
@@ -21,31 +22,30 @@ class UserAdmin(BaseUserAdmin):
     )
 
 
+class ClientContactInline(admin.TabularInline):
+    model = ClientContact
+    extra = 0
+
+
+class ClientCompanyInline(admin.TabularInline):
+    model = ClientCompany
+    extra = 0
+
+
+class ClientAddressInline(admin.TabularInline):
+    model = ClientAddress
+    extra = 0
+
+
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    list_display = ('client_code', 'name', 'company', 'email', 'source', 'is_archived')
+    list_display = ('client_code', 'name', 'primary_company', 'primary_email', 'source', 'is_archived')
     list_filter = ('is_archived', 'source', 'is_active')
-    search_fields = ('name', 'company', 'email', 'contact_person')
+    search_fields = ('name',)
+    inlines = [ClientContactInline, ClientCompanyInline, ClientAddressInline]
     fieldsets = (
         (None, {'fields': ('client_code', 'name', 'is_archived', 'is_active', 'created_by')}),
         ('Source', {'fields': ('source', 'source_url', 'source_notes')}),
-        ('Primary Contact', {'fields': ('contact_person', 'email', 'phone', 'mobile')}),
-        ('Additional Contacts', {
-            'classes': ('collapse',),
-            'fields': ('alternative_email', 'alternative_phone', 'telegram', 'whatsapp', 'skype', 'linkedin', 'other_contact'),
-        }),
-        ('Company', {
-            'classes': ('collapse',),
-            'fields': ('company', 'company_registration', 'company_website', 'company_email'),
-        }),
-        ('Address', {
-            'classes': ('collapse',),
-            'fields': ('address_line1', 'address_line2', 'city', 'state_province', 'postal_code', 'country', 'timezone'),
-        }),
-        ('Additional Info', {
-            'classes': ('collapse',),
-            'fields': ('industry', 'company_size', 'preferred_communication', 'working_hours'),
-        }),
         ('Notes', {'fields': ('notes', 'internal_notes', 'tags')}),
     )
 

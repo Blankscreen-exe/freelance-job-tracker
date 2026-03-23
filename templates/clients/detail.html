@@ -22,65 +22,86 @@
 </div>
 
 <div class="row g-3 mb-4">
-    <!-- Primary Contact -->
+    <!-- Contacts -->
     <div class="col-md-6">
-        <div class="card">
-            <div class="card-header"><h6 class="mb-0">Primary Contact</h6></div>
+        <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0">Contacts</h6></div>
             <div class="card-body">
-                <dl class="row mb-0">
-                    {% if client.contact_person %}<dt class="col-sm-4">Contact Person</dt><dd class="col-sm-8">{{ client.contact_person }}</dd>{% endif %}
-                    <dt class="col-sm-4">Email</dt><dd class="col-sm-8">{% if client.email %}<a href="mailto:{{ client.email }}">{{ client.email }}</a>{% else %}-{% endif %}</dd>
-                    <dt class="col-sm-4">Phone</dt><dd class="col-sm-8">{{ client.phone|default:"-" }}</dd>
-                    {% if client.mobile %}<dt class="col-sm-4">Mobile</dt><dd class="col-sm-8">{{ client.mobile }}</dd>{% endif %}
-                </dl>
+                {% if client.contacts.all %}
+                <table class="table table-sm mb-0">
+                    <tbody>
+                        {% for c in client.contacts.all %}
+                        <tr>
+                            <td>
+                                <span class="badge bg-secondary">{{ c.get_contact_type_display }}</span>
+                                {% if c.is_primary %}<span class="badge bg-primary">Primary</span>{% endif %}
+                            </td>
+                            <td>
+                                {% if c.contact_type == 'email' %}<a href="mailto:{{ c.value }}">{{ c.value }}</a>
+                                {% elif c.contact_type == 'linkedin' %}<a href="{{ c.value }}" target="_blank">{{ c.value }}</a>
+                                {% else %}{{ c.value }}{% endif %}
+                            </td>
+                            <td class="text-muted small">{{ c.get_label_display }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted mb-0">No contacts added.</p>
+                {% endif %}
             </div>
         </div>
     </div>
 
-    <!-- Company -->
+    <!-- Companies -->
     <div class="col-md-6">
-        <div class="card">
-            <div class="card-header"><h6 class="mb-0">Company</h6></div>
+        <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0">Companies</h6></div>
             <div class="card-body">
-                <dl class="row mb-0">
-                    <dt class="col-sm-4">Company</dt><dd class="col-sm-8">{{ client.company|default:"-" }}</dd>
-                    {% if client.company_website %}<dt class="col-sm-4">Website</dt><dd class="col-sm-8"><a href="{{ client.company_website }}" target="_blank">{{ client.company_website }}</a></dd>{% endif %}
-                    {% if client.company_email %}<dt class="col-sm-4">Company Email</dt><dd class="col-sm-8">{{ client.company_email }}</dd>{% endif %}
-                    {% if client.company_registration %}<dt class="col-sm-4">Registration</dt><dd class="col-sm-8">{{ client.company_registration }}</dd>{% endif %}
-                    {% if client.industry %}<dt class="col-sm-4">Industry</dt><dd class="col-sm-8">{{ client.industry }}</dd>{% endif %}
-                    {% if client.company_size %}<dt class="col-sm-4">Size</dt><dd class="col-sm-8">{{ client.company_size }}</dd>{% endif %}
-                </dl>
+                {% if client.companies.all %}
+                {% for co in client.companies.all %}
+                <div {% if not forloop.last %}class="mb-3 pb-3 border-bottom"{% endif %}>
+                    <strong>{{ co.company_name }}</strong>
+                    {% if co.is_current %}<span class="badge bg-success">Current</span>{% endif %}
+                    {% if co.role %}<br><small class="text-muted">{{ co.role }}</small>{% endif %}
+                    <dl class="row mb-0 mt-1">
+                        {% if co.website %}<dt class="col-sm-4">Website</dt><dd class="col-sm-8"><a href="{{ co.website }}" target="_blank">{{ co.website }}</a></dd>{% endif %}
+                        {% if co.industry %}<dt class="col-sm-4">Industry</dt><dd class="col-sm-8">{{ co.industry }}</dd>{% endif %}
+                        {% if co.size %}<dt class="col-sm-4">Size</dt><dd class="col-sm-8">{{ co.size }}</dd>{% endif %}
+                        {% if co.registration %}<dt class="col-sm-4">Registration</dt><dd class="col-sm-8">{{ co.registration }}</dd>{% endif %}
+                    </dl>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted mb-0">No companies added.</p>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-{% if client.telegram or client.whatsapp or client.skype or client.linkedin or client.alternative_email or client.alternative_phone or client.other_contact %}
+<!-- Addresses -->
+{% if client.addresses.all %}
 <div class="card mb-4">
-    <div class="card-header"><h6 class="mb-0">Additional Contacts</h6></div>
+    <div class="card-header"><h6 class="mb-0">Addresses</h6></div>
     <div class="card-body">
-        <dl class="row mb-0">
-            {% if client.alternative_email %}<dt class="col-sm-3">Alt Email</dt><dd class="col-sm-3">{{ client.alternative_email }}</dd>{% endif %}
-            {% if client.alternative_phone %}<dt class="col-sm-3">Alt Phone</dt><dd class="col-sm-3">{{ client.alternative_phone }}</dd>{% endif %}
-            {% if client.telegram %}<dt class="col-sm-3">Telegram</dt><dd class="col-sm-3">{{ client.telegram }}</dd>{% endif %}
-            {% if client.whatsapp %}<dt class="col-sm-3">WhatsApp</dt><dd class="col-sm-3">{{ client.whatsapp }}</dd>{% endif %}
-            {% if client.skype %}<dt class="col-sm-3">Skype</dt><dd class="col-sm-3">{{ client.skype }}</dd>{% endif %}
-            {% if client.linkedin %}<dt class="col-sm-3">LinkedIn</dt><dd class="col-sm-3"><a href="{{ client.linkedin }}" target="_blank">Profile</a></dd>{% endif %}
-            {% if client.other_contact %}<dt class="col-sm-3">Other</dt><dd class="col-sm-3">{{ client.other_contact }}</dd>{% endif %}
-        </dl>
-    </div>
-</div>
-{% endif %}
-
-{% if client.address_line1 or client.city or client.country %}
-<div class="card mb-4">
-    <div class="card-header"><h6 class="mb-0">Address</h6></div>
-    <div class="card-body">
-        {% if client.address_line1 %}{{ client.address_line1 }}<br>{% endif %}
-        {% if client.address_line2 %}{{ client.address_line2 }}<br>{% endif %}
-        {% if client.city %}{{ client.city }}{% endif %}{% if client.state_province %}, {{ client.state_province }}{% endif %}{% if client.postal_code %} {{ client.postal_code }}{% endif %}<br>
-        {% if client.country %}{{ client.country }}{% endif %}
-        {% if client.timezone %}<br><small class="text-muted">Timezone: {{ client.timezone }}</small>{% endif %}
+        <div class="row g-3">
+            {% for addr in client.addresses.all %}
+            <div class="col-md-6">
+                <div class="border rounded p-3">
+                    <strong>{{ addr.get_label_display }}</strong>
+                    {% if addr.is_primary %}<span class="badge bg-primary">Primary</span>{% endif %}
+                    <div class="mt-1">
+                        {% if addr.address_line1 %}{{ addr.address_line1 }}<br>{% endif %}
+                        {% if addr.address_line2 %}{{ addr.address_line2 }}<br>{% endif %}
+                        {% if addr.city %}{{ addr.city }}{% endif %}{% if addr.state %}, {{ addr.state }}{% endif %}{% if addr.postal_code %} {{ addr.postal_code }}{% endif %}<br>
+                        {% if addr.country %}{{ addr.country }}{% endif %}
+                        {% if addr.timezone %}<br><small class="text-muted">Timezone: {{ addr.timezone }}</small>{% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 </div>
 {% endif %}

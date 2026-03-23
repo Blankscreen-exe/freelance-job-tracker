@@ -8,7 +8,8 @@ from django.db.models import Sum, Q
 from django.http import HttpResponseBadRequest
 
 from .models import (
-    Job, Client, Middleman, Worker, Payment, Receipt,
+    Job, Client, ClientContact, ClientCompany, ClientAddress,
+    Middleman, Worker, Payment, Receipt,
     JobAllocation, SettingsVersion, ReceiptDistribution,
     JobCalculationSnapshot,
 )
@@ -239,27 +240,83 @@ def job_edit(request, pk):
 # Clients
 # ──────────────────────────────────────────────
 
-_CLIENT_FIELDS = [
-    'name', 'source', 'source_url', 'source_notes', 'contact_person',
-    'email', 'phone', 'mobile', 'alternative_email', 'alternative_phone',
-    'telegram', 'whatsapp', 'skype', 'linkedin', 'other_contact',
-    'company', 'company_registration', 'company_website', 'company_email',
-    'address_line1', 'address_line2', 'city', 'state_province', 'postal_code',
-    'country', 'timezone', 'industry', 'company_size',
-    'preferred_communication', 'working_hours', 'notes', 'internal_notes', 'tags',
-]
+_CLIENT_FIELDS = ['name', 'source', 'source_url', 'source_notes', 'notes', 'internal_notes', 'tags']
 
 
 def _populate_client_from_post(client, post):
     for f in _CLIENT_FIELDS:
         setattr(client, f, post.get(f, ''))
 
+
+def _save_client_related(client, post):
+    """Save contacts, companies, and addresses from POST data."""
+    # Contacts: contact_type[], contact_value[], contact_label[], contact_primary
+    client.contacts.all().delete()
+    types = post.getlist('contact_type')
+    values = post.getlist('contact_value')
+    labels = post.getlist('contact_label')
+    primary_idx = post.get('contact_primary', '')
+    for i, (ct, cv) in enumerate(zip(types, values)):
+        if cv.strip():
+            ClientContact.objects.create(
+                client=client, contact_type=ct, value=cv.strip(),
+                label=labels[i] if i < len(labels) else 'work',
+                is_primary=(str(i) == primary_idx),
+            )
+
+    # Companies: comp_name[], comp_role[], comp_website[], comp_registration[], comp_industry[], comp_size[], comp_current[]
+    client.companies.all().delete()
+    names = post.getlist('comp_name')
+    roles = post.getlist('comp_role')
+    websites = post.getlist('comp_website')
+    registrations = post.getlist('comp_registration')
+    industries = post.getlist('comp_industry')
+    sizes = post.getlist('comp_size')
+    current_indices = post.getlist('comp_current')
+    for i, name in enumerate(names):
+        if name.strip():
+            ClientCompany.objects.create(
+                client=client, company_name=name.strip(),
+                role=roles[i] if i < len(roles) else '',
+                website=websites[i] if i < len(websites) else '',
+                registration=registrations[i] if i < len(registrations) else '',
+                industry=industries[i] if i < len(industries) else '',
+                size=sizes[i] if i < len(sizes) else '',
+                is_current=(str(i) in current_indices),
+            )
+
+    # Addresses: addr_label[], addr_line1[], addr_line2[], addr_city[], addr_state[], addr_postal[], addr_country[], addr_tz[], addr_primary
+    client.addresses.all().delete()
+    addr_labels = post.getlist('addr_label')
+    lines1 = post.getlist('addr_line1')
+    lines2 = post.getlist('addr_line2')
+    cities = post.getlist('addr_city')
+    states = post.getlist('addr_state')
+    postals = post.getlist('addr_postal')
+    countries = post.getlist('addr_country')
+    timezones = post.getlist('addr_tz')
+    addr_primary = post.get('addr_primary', '')
+    for i in range(len(lines1)):
+        if lines1[i].strip() or (i < len(cities) and cities[i].strip()):
+            ClientAddress.objects.create(
+                client=client,
+                label=addr_labels[i] if i < len(addr_labels) else 'office',
+                address_line1=lines1[i].strip() if i < len(lines1) else '',
+                address_line2=lines2[i].strip() if i < len(lines2) else '',
+                city=cities[i].strip() if i < len(cities) else '',
+                state=states[i].strip() if i < len(states) else '',
+                postal_code=postals[i].strip() if i < len(postals) else '',
+                country=countries[i].strip() if i < len(countries) else '',
+                timezone=timezones[i].strip() if i < len(timezones) else '',
+                is_primary=(str(i) == addr_primary),
+            )
+
 @login_required
 def client_list(request):
     if not request.user.is_admin_user() and request.user.active_role != 'middleman':
         messages.error(request, "Access restricted.")
         return redirect('dashboard')
-    clients = Client.objects.filter(is_archived=False)
+    clients = Client.objects.filter(is_archived=False).prefetch_related('contacts', 'companies')
     if not request.user.is_admin_user():
         clients = clients.filter(created_by=request.user)
     return render(request, 'clients/list.html', {'clients': clients})
@@ -267,7 +324,7 @@ def client_list(request):
 
 @login_required
 def client_detail(request, pk):
-    client = get_object_or_404(Client, pk=pk)
+    client = get_object_or_404(Client.objects.prefetch_related('contacts', 'companies', 'addresses'), pk=pk)
     jobs = client.jobs.all()
     return render(request, 'clients/detail.html', {'client': client, 'jobs': jobs})
 
@@ -278,22 +335,24 @@ def client_create(request):
         client = Client(client_code=_next_code(Client, 'C'), created_by=request.user)
         _populate_client_from_post(client, request.POST)
         client.save()
+        _save_client_related(client, request.POST)
         messages.success(request, f"Client {client.client_code} created.")
         return redirect('client_detail', pk=client.pk)
 
-    return render(request, 'clients/form.html', {'client': None})
+    return render(request, 'clients/form.html', {'client': None, 'contact_types': ClientContact.ContactType.choices, 'contact_labels': ClientContact.Label.choices, 'addr_labels': ClientAddress.Label.choices})
 
 
 @login_required
 def client_edit(request, pk):
-    client = get_object_or_404(Client, pk=pk)
+    client = get_object_or_404(Client.objects.prefetch_related('contacts', 'companies', 'addresses'), pk=pk)
     if request.method == 'POST':
         _populate_client_from_post(client, request.POST)
         client.save()
+        _save_client_related(client, request.POST)
         messages.success(request, f"Client {client.client_code} updated.")
         return redirect('client_detail', pk=client.pk)
 
-    return render(request, 'clients/form.html', {'client': client})
+    return render(request, 'clients/form.html', {'client': client, 'contact_types': ClientContact.ContactType.choices, 'contact_labels': ClientContact.Label.choices, 'addr_labels': ClientAddress.Label.choices})
 
 
 # ──────────────────────────────────────────────

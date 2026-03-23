@@ -16,8 +16,8 @@
             <tr>
                 <td><strong>{{ client.client_code }}</strong></td>
                 <td><a href="{% url 'client_detail' client.pk %}">{{ client.name }}</a></td>
-                <td>{{ client.company|default:"-" }}</td>
-                <td>{{ client.email|default:"-" }}</td>
+                <td>{{ client.primary_company|default:"-" }}</td>
+                <td>{{ client.primary_email|default:"-" }}</td>
                 <td>{{ client.source|default:"-" }}</td>
                 <td>
                     <a href="{% url 'client_detail' client.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>

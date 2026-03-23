@@ -21,99 +21,111 @@
                     <input type="text" name="source" class="form-control" value="{{ client.source|default:'' }}" placeholder="upwork, referral...">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Company</label>
-                    <input type="text" name="company" class="form-control" value="{{ client.company|default:'' }}">
+                    <label class="form-label">Source URL</label>
+                    <input type="url" name="source_url" class="form-control" value="{{ client.source_url|default:'' }}">
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Primary Contact -->
+    <!-- Contacts (dynamic) -->
     <div class="card mb-3">
-        <div class="card-header"><h6 class="mb-0">Primary Contact</h6></div>
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <label class="form-label">Contact Person</label>
-                    <input type="text" name="contact_person" class="form-control" value="{{ client.contact_person|default:'' }}">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">Contacts</h6>
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addContactRow()"><i class="bi bi-plus"></i> Add</button>
+        </div>
+        <div class="card-body" id="contactRows">
+            {% if client %}
+            {% for c in client.contacts.all %}
+            <div class="row g-2 mb-2 contact-row">
+                <div class="col-md-2">
+                    <select name="contact_type" class="form-select form-select-sm">
+                        {% for val, label in contact_types %}<option value="{{ val }}" {% if c.contact_type == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select>
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label">Email</label>
-                    <input type="email" name="email" class="form-control" value="{{ client.email|default:'' }}">
+                <div class="col-md-4">
+                    <input type="text" name="contact_value" class="form-control form-control-sm" value="{{ c.value }}">
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label">Phone</label>
-                    <input type="text" name="phone" class="form-control" value="{{ client.phone|default:'' }}">
+                <div class="col-md-2">
+                    <select name="contact_label" class="form-select form-select-sm">
+                        {% for val, label in contact_labels %}<option value="{{ val }}" {% if c.label == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select>
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label">Mobile</label>
-                    <input type="text" name="mobile" class="form-control" value="{{ client.mobile|default:'' }}">
+                <div class="col-md-2">
+                    <div class="form-check mt-1">
+                        <input class="form-check-input" type="radio" name="contact_primary" value="{{ forloop.counter0 }}" {% if c.is_primary %}checked{% endif %}>
+                        <label class="form-check-label small">Primary</label>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.contact-row').remove()"><i class="bi bi-trash"></i></button>
                 </div>
             </div>
+            {% endfor %}
+            {% endif %}
         </div>
     </div>
 
-    <!-- Additional Contacts (collapsible) -->
+    <!-- Companies (dynamic) -->
     <div class="card mb-3">
-        <div class="card-header">
-            <a class="text-decoration-none" data-bs-toggle="collapse" href="#altContacts">
-                <h6 class="mb-0">Additional Contacts <i class="bi bi-chevron-down"></i></h6>
-            </a>
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">Companies</h6>
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addCompanyRow()"><i class="bi bi-plus"></i> Add</button>
         </div>
-        <div class="collapse {% if client.telegram or client.whatsapp or client.skype or client.linkedin or client.alternative_email %}show{% endif %}" id="altContacts">
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-6"><label class="form-label">Alternative Email</label><input type="email" name="alternative_email" class="form-control" value="{{ client.alternative_email|default:'' }}"></div>
-                    <div class="col-md-6"><label class="form-label">Alternative Phone</label><input type="text" name="alternative_phone" class="form-control" value="{{ client.alternative_phone|default:'' }}"></div>
-                    <div class="col-md-4"><label class="form-label">Telegram</label><input type="text" name="telegram" class="form-control" value="{{ client.telegram|default:'' }}"></div>
-                    <div class="col-md-4"><label class="form-label">WhatsApp</label><input type="text" name="whatsapp" class="form-control" value="{{ client.whatsapp|default:'' }}"></div>
-                    <div class="col-md-4"><label class="form-label">Skype</label><input type="text" name="skype" class="form-control" value="{{ client.skype|default:'' }}"></div>
-                    <div class="col-md-6"><label class="form-label">LinkedIn</label><input type="url" name="linkedin" class="form-control" value="{{ client.linkedin|default:'' }}"></div>
-                    <div class="col-md-6"><label class="form-label">Other Contact</label><input type="text" name="other_contact" class="form-control" value="{{ client.other_contact|default:'' }}"></div>
+        <div class="card-body" id="companyRows">
+            {% if client %}
+            {% for co in client.companies.all %}
+            <div class="company-row border rounded p-3 mb-2">
+                <div class="row g-2">
+                    <div class="col-md-4"><label class="form-label small">Company Name</label><input type="text" name="comp_name" class="form-control form-control-sm" value="{{ co.company_name }}"></div>
+                    <div class="col-md-3"><label class="form-label small">Role/Title</label><input type="text" name="comp_role" class="form-control form-control-sm" value="{{ co.role }}"></div>
+                    <div class="col-md-3"><label class="form-label small">Website</label><input type="url" name="comp_website" class="form-control form-control-sm" value="{{ co.website }}"></div>
+                    <div class="col-md-2 d-flex align-items-end gap-2">
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="comp_current" value="{{ forloop.counter0 }}" {% if co.is_current %}checked{% endif %}><label class="form-check-label small">Current</label></div>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.company-row').remove()"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="col-md-3"><label class="form-label small">Registration</label><input type="text" name="comp_registration" class="form-control form-control-sm" value="{{ co.registration }}"></div>
+                    <div class="col-md-3"><label class="form-label small">Industry</label><input type="text" name="comp_industry" class="form-control form-control-sm" value="{{ co.industry }}"></div>
+                    <div class="col-md-3"><label class="form-label small">Size</label><input type="text" name="comp_size" class="form-control form-control-sm" value="{{ co.size }}" placeholder="1-10, 11-50..."></div>
                 </div>
             </div>
+            {% endfor %}
+            {% endif %}
         </div>
     </div>
 
-    <!-- Company Info (collapsible) -->
+    <!-- Addresses (dynamic) -->
     <div class="card mb-3">
-        <div class="card-header">
-            <a class="text-decoration-none" data-bs-toggle="collapse" href="#companyInfo">
-                <h6 class="mb-0">Company Details <i class="bi bi-chevron-down"></i></h6>
-            </a>
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">Addresses</h6>
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addAddressRow()"><i class="bi bi-plus"></i> Add</button>
         </div>
-        <div class="collapse {% if client.company_website or client.company_registration or client.company_email %}show{% endif %}" id="companyInfo">
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-6"><label class="form-label">Company Registration</label><input type="text" name="company_registration" class="form-control" value="{{ client.company_registration|default:'' }}"></div>
-                    <div class="col-md-6"><label class="form-label">Company Website</label><input type="url" name="company_website" class="form-control" value="{{ client.company_website|default:'' }}"></div>
-                    <div class="col-md-6"><label class="form-label">Company Email</label><input type="email" name="company_email" class="form-control" value="{{ client.company_email|default:'' }}"></div>
-                    <div class="col-md-3"><label class="form-label">Industry</label><input type="text" name="industry" class="form-control" value="{{ client.industry|default:'' }}"></div>
-                    <div class="col-md-3"><label class="form-label">Company Size</label><input type="text" name="company_size" class="form-control" value="{{ client.company_size|default:'' }}" placeholder="1-10, 11-50..."></div>
+        <div class="card-body" id="addressRows">
+            {% if client %}
+            {% for addr in client.addresses.all %}
+            <div class="address-row border rounded p-3 mb-2">
+                <div class="row g-2">
+                    <div class="col-md-2">
+                        <label class="form-label small">Label</label>
+                        <select name="addr_label" class="form-select form-select-sm">
+                            {% for val, label in addr_labels %}<option value="{{ val }}" {% if addr.label == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4"><label class="form-label small">Address Line 1</label><input type="text" name="addr_line1" class="form-control form-control-sm" value="{{ addr.address_line1 }}"></div>
+                    <div class="col-md-4"><label class="form-label small">Address Line 2</label><input type="text" name="addr_line2" class="form-control form-control-sm" value="{{ addr.address_line2 }}"></div>
+                    <div class="col-md-2 d-flex align-items-end gap-2">
+                        <div class="form-check"><input class="form-check-input" type="radio" name="addr_primary" value="{{ forloop.counter0 }}" {% if addr.is_primary %}checked{% endif %}><label class="form-check-label small">Primary</label></div>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.address-row').remove()"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="col-md-3"><label class="form-label small">City</label><input type="text" name="addr_city" class="form-control form-control-sm" value="{{ addr.city }}"></div>
+                    <div class="col-md-3"><label class="form-label small">State/Province</label><input type="text" name="addr_state" class="form-control form-control-sm" value="{{ addr.state }}"></div>
+                    <div class="col-md-2"><label class="form-label small">Postal Code</label><input type="text" name="addr_postal" class="form-control form-control-sm" value="{{ addr.postal_code }}"></div>
+                    <div class="col-md-2"><label class="form-label small">Country</label><input type="text" name="addr_country" class="form-control form-control-sm" value="{{ addr.country }}"></div>
+                    <div class="col-md-2"><label class="form-label small">Timezone</label><input type="text" name="addr_tz" class="form-control form-control-sm" value="{{ addr.timezone }}"></div>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Address (collapsible) -->
-    <div class="card mb-3">
-        <div class="card-header">
-            <a class="text-decoration-none" data-bs-toggle="collapse" href="#addressInfo">
-                <h6 class="mb-0">Address <i class="bi bi-chevron-down"></i></h6>
-            </a>
-        </div>
-        <div class="collapse {% if client.address_line1 or client.city or client.country %}show{% endif %}" id="addressInfo">
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-12"><label class="form-label">Address Line 1</label><input type="text" name="address_line1" class="form-control" value="{{ client.address_line1|default:'' }}"></div>
-                    <div class="col-12"><label class="form-label">Address Line 2</label><input type="text" name="address_line2" class="form-control" value="{{ client.address_line2|default:'' }}"></div>
-                    <div class="col-md-4"><label class="form-label">City</label><input type="text" name="city" class="form-control" value="{{ client.city|default:'' }}"></div>
-                    <div class="col-md-4"><label class="form-label">State/Province</label><input type="text" name="state_province" class="form-control" value="{{ client.state_province|default:'' }}"></div>
-                    <div class="col-md-4"><label class="form-label">Postal Code</label><input type="text" name="postal_code" class="form-control" value="{{ client.postal_code|default:'' }}"></div>
-                    <div class="col-md-6"><label class="form-label">Country</label><input type="text" name="country" class="form-control" value="{{ client.country|default:'' }}"></div>
-                    <div class="col-md-6"><label class="form-label">Timezone</label><input type="text" name="timezone" class="form-control" value="{{ client.timezone|default:'' }}" placeholder="e.g. America/New_York"></div>
-                </div>
-            </div>
+            {% endfor %}
+            {% endif %}
         </div>
     </div>
 
@@ -123,12 +135,12 @@
         <div class="card-body">
             <div class="row g-3">
                 <div class="col-md-6">
-                    <label class="form-label">Source URL</label>
-                    <input type="url" name="source_url" class="form-control" value="{{ client.source_url|default:'' }}">
-                </div>
-                <div class="col-md-6">
                     <label class="form-label">Tags</label>
                     <input type="text" name="tags" class="form-control" value="{{ client.tags|default:'' }}" placeholder="comma-separated">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Source Notes</label>
+                    <input type="text" name="source_notes" class="form-control" value="{{ client.source_notes|default:'' }}">
                 </div>
                 <div class="col-12">
                     <label class="form-label">Notes</label>
@@ -153,4 +165,64 @@
 
     </div></div>
 </form>
+
+<script>
+let contactIdx = {{ client.contacts.count|default:"0" }};
+let companyIdx = {{ client.companies.count|default:"0" }};
+let addressIdx = {{ client.addresses.count|default:"0" }};
+
+function addContactRow() {
+    const html = `<div class="row g-2 mb-2 contact-row">
+        <div class="col-md-2"><select name="contact_type" class="form-select form-select-sm">
+            {% for val, label in contact_types %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+        </select></div>
+        <div class="col-md-4"><input type="text" name="contact_value" class="form-control form-control-sm" placeholder="Value"></div>
+        <div class="col-md-2"><select name="contact_label" class="form-select form-select-sm">
+            {% for val, label in contact_labels %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+        </select></div>
+        <div class="col-md-2"><div class="form-check mt-1"><input class="form-check-input" type="radio" name="contact_primary" value="${contactIdx}"><label class="form-check-label small">Primary</label></div></div>
+        <div class="col-md-2"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.contact-row').remove()"><i class="bi bi-trash"></i></button></div>
+    </div>`;
+    document.getElementById('contactRows').insertAdjacentHTML('beforeend', html);
+    contactIdx++;
+}
+
+function addCompanyRow() {
+    const html = `<div class="company-row border rounded p-3 mb-2"><div class="row g-2">
+        <div class="col-md-4"><label class="form-label small">Company Name</label><input type="text" name="comp_name" class="form-control form-control-sm"></div>
+        <div class="col-md-3"><label class="form-label small">Role/Title</label><input type="text" name="comp_role" class="form-control form-control-sm"></div>
+        <div class="col-md-3"><label class="form-label small">Website</label><input type="url" name="comp_website" class="form-control form-control-sm"></div>
+        <div class="col-md-2 d-flex align-items-end gap-2">
+            <div class="form-check"><input class="form-check-input" type="checkbox" name="comp_current" value="${companyIdx}" checked><label class="form-check-label small">Current</label></div>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.company-row').remove()"><i class="bi bi-trash"></i></button>
+        </div>
+        <div class="col-md-3"><label class="form-label small">Registration</label><input type="text" name="comp_registration" class="form-control form-control-sm"></div>
+        <div class="col-md-3"><label class="form-label small">Industry</label><input type="text" name="comp_industry" class="form-control form-control-sm"></div>
+        <div class="col-md-3"><label class="form-label small">Size</label><input type="text" name="comp_size" class="form-control form-control-sm" placeholder="1-10, 11-50..."></div>
+    </div></div>`;
+    document.getElementById('companyRows').insertAdjacentHTML('beforeend', html);
+    companyIdx++;
+}
+
+function addAddressRow() {
+    const html = `<div class="address-row border rounded p-3 mb-2"><div class="row g-2">
+        <div class="col-md-2"><label class="form-label small">Label</label><select name="addr_label" class="form-select form-select-sm">
+            {% for val, label in addr_labels %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+        </select></div>
+        <div class="col-md-4"><label class="form-label small">Address Line 1</label><input type="text" name="addr_line1" class="form-control form-control-sm"></div>
+        <div class="col-md-4"><label class="form-label small">Address Line 2</label><input type="text" name="addr_line2" class="form-control form-control-sm"></div>
+        <div class="col-md-2 d-flex align-items-end gap-2">
+            <div class="form-check"><input class="form-check-input" type="radio" name="addr_primary" value="${addressIdx}"><label class="form-check-label small">Primary</label></div>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.address-row').remove()"><i class="bi bi-trash"></i></button>
+        </div>
+        <div class="col-md-3"><label class="form-label small">City</label><input type="text" name="addr_city" class="form-control form-control-sm"></div>
+        <div class="col-md-3"><label class="form-label small">State/Province</label><input type="text" name="addr_state" class="form-control form-control-sm"></div>
+        <div class="col-md-2"><label class="form-label small">Postal Code</label><input type="text" name="addr_postal" class="form-control form-control-sm"></div>
+        <div class="col-md-2"><label class="form-label small">Country</label><input type="text" name="addr_country" class="form-control form-control-sm"></div>
+        <div class="col-md-2"><label class="form-label small">Timezone</label><input type="text" name="addr_tz" class="form-control form-control-sm"></div>
+    </div></div>`;
+    document.getElementById('addressRows').insertAdjacentHTML('beforeend', html);
+    addressIdx++;
+}
+</script>
 {% endblock %}
