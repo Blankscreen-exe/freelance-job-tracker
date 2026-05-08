@@ -420,6 +420,9 @@ def middleman_detail(request, pk):
 
 @login_required
 def middleman_create(request):
+    if not request.user.is_admin_user() and request.user.active_role != 'middleman':
+        messages.error(request, "Access restricted.")
+        return redirect('team_roster')
     if request.method == 'POST':
         middleman = Middleman(
             middleman_code=_next_code(Middleman, 'M'),
@@ -438,6 +441,9 @@ def middleman_create(request):
 
 @login_required
 def middleman_edit(request, pk):
+    if not request.user.is_admin_user() and request.user.active_role != 'middleman':
+        messages.error(request, "Access restricted.")
+        return redirect('team_roster')
     middleman = get_object_or_404(Middleman, pk=pk)
     if request.method == 'POST':
         middleman.name = request.POST['name']
@@ -478,6 +484,9 @@ def worker_detail(request, pk):
 
 @login_required
 def worker_create(request):
+    if not request.user.is_admin_user() and request.user.active_role != 'middleman':
+        messages.error(request, "Access restricted.")
+        return redirect('team_roster')
     if request.method == 'POST':
         worker = Worker(
             worker_code=_next_code(Worker, 'W'),
@@ -496,6 +505,12 @@ def worker_create(request):
 @login_required
 def worker_edit(request, pk):
     worker = get_object_or_404(Worker, pk=pk)
+    if not request.user.is_admin_user() and request.user.active_role != 'middleman':
+        # Workers may only edit their own profile
+        own_worker = getattr(request.user, 'worker_profile', None)
+        if not own_worker or own_worker.pk != worker.pk:
+            messages.error(request, "Access restricted.")
+            return redirect('team_roster')
     if request.method == 'POST':
         worker.name = request.POST['name']
         worker.contact = request.POST.get('contact', '')

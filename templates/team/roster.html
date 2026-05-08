@@ -16,15 +16,25 @@
         <a href="{% url 'team_roster' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
         {% endif %}
     </form>
+    {% if user.is_superuser or user.active_role == 'admin' or user.active_role == 'middleman' %}
     <div class="d-flex gap-2">
         <a href="{% url 'worker_create' %}" class="btn btn-sm btn-primary"><i class="bi bi-plus-circle"></i> New Worker</a>
         <a href="{% url 'middleman_create' %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-circle"></i> New Middleman</a>
     </div>
+    {% endif %}
 </div>
 
 <div class="table-responsive">
     <table class="table table-hover">
-        <thead><tr><th>Code</th><th>Role</th><th>Name</th><th>Contact</th><th>Actions</th></tr></thead>
+        <thead><tr>
+            <th>Code</th>
+            <th>Role</th>
+            <th>Name</th>
+            {% if user.is_superuser or user.active_role == 'admin' or user.active_role == 'middleman' %}
+            <th>Contact</th>
+            <th>Actions</th>
+            {% endif %}
+        </tr></thead>
         <tbody>
             {% for person in roster %}
             <tr>
@@ -36,12 +46,16 @@
                     <span class="badge bg-warning text-dark">Middleman</span>
                     {% endif %}
                 </td>
+                {% if user.is_superuser or user.active_role == 'admin' or user.active_role == 'middleman' %}
                 <td><a href="{% url person.detail_url person.pk %}">{{ person.name }}</a></td>
                 <td>{{ person.contact }}</td>
                 <td>
                     <a href="{% url person.detail_url person.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
                     <a href="{% url person.edit_url person.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
                 </td>
+                {% else %}
+                <td>{{ person.name }}</td>
+                {% endif %}
             </tr>
             {% empty %}
             <tr><td colspan="5" class="text-center text-muted py-4">No team members found.</td></tr>
