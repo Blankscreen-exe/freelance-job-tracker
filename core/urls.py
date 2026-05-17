@@ -9,12 +9,17 @@ urlpatterns = [
     path('auth/switch-role/', views.switch_role, name='switch_role'),
     path('profile/', views.profile, name='profile'),
     path('profile/change-password/', views.change_password, name='change_password'),
+    path('profile/delete/', views.account_self_delete, name='account_self_delete'),
 
     # Users (admin only)
     path('users/', views.user_list, name='user_list'),
     path('users/new/', views.user_create, name='user_create'),
     path('users/<int:pk>/', views.user_detail, name='user_detail'),
     path('users/<int:pk>/edit/', views.user_edit, name='user_edit'),
+    path('users/<int:pk>/delete/', views.user_delete, name='user_delete'),
+    path('users/<int:pk>/delete-worker-profile/', views.user_delete_worker_profile, name='user_delete_worker_profile'),
+    path('users/<int:pk>/delete-middleman-profile/', views.user_delete_middleman_profile, name='user_delete_middleman_profile'),
+    path('users/<int:pk>/resend-invitation/', views.user_resend_invitation, name='user_resend_invitation'),
 
     # Jobs
     path('jobs/', views.job_list, name='job_list'),
@@ -24,6 +29,7 @@ urlpatterns = [
     path('jobs/<int:pk>/archive/', views.job_archive, name='job_archive'),
     path('jobs/<int:pk>/finalize/', views.job_finalize, name='job_finalize'),
     path('jobs/<int:pk>/unfinalize/', views.job_unfinalize, name='job_unfinalize'),
+    path('jobs/<int:pk>/note/', views.job_note_save, name='job_note_save'),
 
     # Receipts (nested under jobs)
     path('jobs/<int:job_pk>/receipts/new/', views.receipt_create, name='receipt_create'),
@@ -86,4 +92,6 @@ urlpatterns = [
     path('settings/<int:pk>/activate/', views.settings_activate, name='settings_activate'),
     path('settings/<int:pk>/clone/', views.settings_clone, name='settings_clone'),
     path('settings/branding/', views.branding_settings, name='branding_settings'),
+    path('settings/smtp/', views.smtp_settings, name='smtp_settings'),
+    path('settings/smtp/test/', views.smtp_test, name='smtp_test'),
 ]

@@ -19,7 +19,9 @@
     {% if user.is_superuser or user.active_role == 'admin' or user.active_role == 'middleman' %}
     <div class="d-flex gap-2">
         <a href="{% url 'worker_create' %}" class="btn btn-sm btn-primary"><i class="bi bi-plus-circle"></i> New Worker</a>
+        {% if user.is_superuser or user.active_role == 'admin' %}
         <a href="{% url 'middleman_create' %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-circle"></i> New Middleman</a>
+        {% endif %}
     </div>
     {% endif %}
 </div>

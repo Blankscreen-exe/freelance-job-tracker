@@ -1,0 +1,81 @@
+{# Shared "Login Account" form section for worker/middleman create. Expects: form (dict), available_users (qs), role_label (str). #}
+<div class="card mb-3 border-primary-subtle">
+    <div class="card-header bg-primary-subtle">
+        <h6 class="mb-0">Login Account <span class="text-danger">*</span></h6>
+    </div>
+    <div class="card-body">
+        <p class="text-muted small mb-3">Every {{ role_label }} must be tied to a user that can log in. Either link an existing user, or create a new one.</p>
+
+        <div class="form-check mb-2">
+            <input class="form-check-input login-mode-radio" type="radio" name="login_mode" id="loginModeLink" value="link"
+                   {% if form.login_mode == "link" or not form.login_mode %}checked{% endif %}>
+            <label class="form-check-label fw-semibold" for="loginModeLink">Link to existing user</label>
+        </div>
+        <div class="login-mode-link-fields ps-4 mb-3">
+            <select name="existing_user_id" class="form-select form-select-sm">
+                <option value="">— select a user —</option>
+                {% for u in available_users %}
+                <option value="{{ u.pk }}" {% if form.existing_user_id == u.pk|stringformat:"s" %}selected{% endif %}>
+                    {{ u.username }}{% if u.email %} ({{ u.email }}){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+            {% if not available_users %}
+            <small class="text-muted d-block mt-1">No unlinked users available. Create a new one below.</small>
+            {% endif %}
+        </div>
+
+        <div class="form-check mb-2">
+            <input class="form-check-input login-mode-radio" type="radio" name="login_mode" id="loginModeCreate" value="create"
+                   {% if form.login_mode == "create" %}checked{% endif %}>
+            <label class="form-check-label fw-semibold" for="loginModeCreate">Create new user</label>
+        </div>
+        <div class="login-mode-create-fields ps-4">
+            <div class="row g-2 mb-2">
+                <div class="col-md-6">
+                    <label class="form-label form-label-sm">Username <span class="text-danger">*</span></label>
+                    <input type="text" name="new_username" class="form-control form-control-sm" value="{{ form.new_username|default:'' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label form-label-sm">Email</label>
+                    <input type="email" name="new_email" class="form-control form-control-sm" value="{{ form.new_email|default:'' }}">
+                </div>
+            </div>
+            <div class="mb-1">
+                <label class="form-label form-label-sm d-block mb-1">Password</label>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input password-mode-radio" type="radio" name="password_mode" id="pwModeAuto" value="auto"
+                           {% if form.password_mode == "auto" or not form.password_mode %}checked{% endif %}>
+                    <label class="form-check-label" for="pwModeAuto">Auto-generate (shown once after save)</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input password-mode-radio" type="radio" name="password_mode" id="pwModeCustom" value="custom"
+                           {% if form.password_mode == "custom" %}checked{% endif %}>
+                    <label class="form-check-label" for="pwModeCustom">Set a password</label>
+                </div>
+            </div>
+            <div class="password-custom-field mt-1">
+                <input type="text" name="new_password" class="form-control form-control-sm" placeholder="Password" value="{{ form.new_password|default:'' }}">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    function update() {
+        var mode = document.querySelector('input[name="login_mode"]:checked');
+        var modeVal = mode ? mode.value : 'link';
+        document.querySelector('.login-mode-link-fields').style.opacity = modeVal === 'link' ? '1' : '0.4';
+        document.querySelector('.login-mode-create-fields').style.opacity = modeVal === 'create' ? '1' : '0.4';
+
+        var pwMode = document.querySelector('input[name="password_mode"]:checked');
+        var pwField = document.querySelector('.password-custom-field');
+        pwField.style.display = (pwMode && pwMode.value === 'custom') ? 'block' : 'none';
+    }
+    document.querySelectorAll('.login-mode-radio, .password-mode-radio').forEach(function(el) {
+        el.addEventListener('change', update);
+    });
+    update();
+})();
+</script>

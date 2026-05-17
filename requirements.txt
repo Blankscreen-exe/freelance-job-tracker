@@ -5,3 +5,6 @@ django-storages[boto3]
 Pillow
 weasyprint
 whitenoise
+markdown
+bleach
+cryptography

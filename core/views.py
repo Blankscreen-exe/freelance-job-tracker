@@ -11,7 +11,8 @@ from .models import (
     Job, Client, ClientContact, ClientCompany, ClientAddress,
     Middleman, Worker, Payment, Receipt,
     JobAllocation, SettingsVersion, ReceiptDistribution,
-    JobCalculationSnapshot,
+    JobCalculationSnapshot, User, UserRole, JobNote,
+    Expense, Vendor, ExpenseCategory,
 )
 from .services.calculations import (
     get_job_totals, compute_allocations, compute_worker_totals,
@@ -19,6 +20,20 @@ from .services.calculations import (
 )
 from .services.payment_generator import generate_payments_from_receipt
 from .services.reports import get_pnl_data, get_ledger_entries, pnl_to_csv_rows, ledger_to_csv_rows
+from .services.email import send_invitation
+
+
+def _send_invitation_quietly(request, email, username, password):
+    """Fire an invitation email; silently swallow failures so user creation is never blocked."""
+    from django.conf import settings as django_settings
+    try:
+        login_url = request.build_absolute_uri('/login/')
+        app_name = getattr(django_settings, 'APP_NAME', 'Job Tracker')
+        send_invitation(to=email, username=username, password=password,
+                        login_url=login_url, app_name=app_name)
+        messages.info(request, f"Invitation email sent to {email}.")
+    except Exception as exc:
+        messages.warning(request, f"User created, but invitation email could not be sent: {exc}")
 
 
 # ──────────────────────────────────────────────
@@ -31,19 +46,25 @@ def dashboard(request):
     active_jobs = visible.filter(status='active').count()
     recent_jobs = visible.select_related('client')[:10]
 
+    my_expenses = Expense.objects.filter(
+        created_by=request.user
+    ).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
+
     is_worker = not request.user.is_admin_user() and request.user.active_role == 'worker'
 
     if is_worker:
-        # Worker dashboard: show only their own earnings/payments
         worker = getattr(request.user, 'worker_profile', None)
         if worker:
             wt = compute_worker_totals(worker)
         else:
-            wt = {'earned': 0, 'paid': 0, 'due': 0}
+            wt = {'earned': Decimal('0.00'), 'paid': Decimal('0.00'), 'due': Decimal('0.00')}
+        net_position = Decimal(str(wt['earned'])) - my_expenses
         return render(request, 'dashboard.html', {
             'is_worker_view': True,
             'is_middleman_view': False,
             'worker_totals': wt,
+            'my_expenses': my_expenses,
+            'net_position': net_position,
             'totals': {'active_jobs': active_jobs},
             'recent_jobs': recent_jobs,
             'top_due_workers': [],
@@ -79,6 +100,7 @@ def dashboard(request):
         'totals': {**totals, 'active_jobs': active_jobs},
         'recent_jobs': recent_jobs,
         'top_due_workers': top_due[:5],
+        'my_expenses': my_expenses,
     })
 
 
@@ -127,6 +149,7 @@ def job_detail(request, pk):
             alloc_display.append({'alloc': alloc_obj, 'earned': Decimal(str(item.get('earned', 0)))})
 
     workers = Worker.objects.filter(is_archived=False)
+    note = JobNote.objects.filter(job=job, user=request.user).first()
 
     return render(request, 'jobs/detail.html', {
         'job': job,
@@ -136,7 +159,24 @@ def job_detail(request, pk):
         'payments': payments,
         'totals': totals,
         'workers': workers,
+        'note': note,
     })
+
+
+@login_required
+def job_note_save(request, pk):
+    if request.method != 'POST':
+        return redirect('job_detail', pk=pk)
+    job = get_object_or_404(Job, pk=pk)
+    if not get_visible_jobs(request.user).filter(pk=pk).exists():
+        messages.error(request, "You don't have access to this job.")
+        return redirect('job_list')
+    body = request.POST.get('body', '').strip()
+    note, _ = JobNote.objects.get_or_create(job=job, user=request.user)
+    note.body = body
+    note.save()
+    messages.success(request, "Notes saved.")
+    return redirect('job_detail', pk=pk)
 
 
 def _next_code(model, prefix, pad=2):
@@ -169,10 +209,6 @@ def job_create(request):
             job_post_url=request.POST.get('job_post_url', ''),
             description=request.POST.get('description', ''),
             cover_letter=request.POST.get('cover_letter', ''),
-            upwork_job_id=request.POST.get('upwork_job_id', ''),
-            upwork_contract_id=request.POST.get('upwork_contract_id', ''),
-            upwork_offer_id=request.POST.get('upwork_offer_id', ''),
-            connects_used=request.POST.get('connects_used') or 0,
             commission_type=request.POST.get('commission_type', 'percent'),
             commission_value=request.POST.get('commission_value') or 0,
             start_date=request.POST.get('start_date') or None,
@@ -211,10 +247,6 @@ def job_edit(request, pk):
         job.job_post_url = request.POST.get('job_post_url', '')
         job.description = request.POST.get('description', '')
         job.cover_letter = request.POST.get('cover_letter', '')
-        job.upwork_job_id = request.POST.get('upwork_job_id', '')
-        job.upwork_contract_id = request.POST.get('upwork_contract_id', '')
-        job.upwork_offer_id = request.POST.get('upwork_offer_id', '')
-        job.connects_used = request.POST.get('connects_used') or 0
         job.commission_type = request.POST.get('commission_type', 'percent')
         job.commission_value = request.POST.get('commission_value') or 0
         job.start_date = request.POST.get('start_date') or None
@@ -420,23 +452,19 @@ def middleman_detail(request, pk):
 
 @login_required
 def middleman_create(request):
-    if not request.user.is_admin_user() and request.user.active_role != 'middleman':
+    if not request.user.is_admin_user():
         messages.error(request, "Access restricted.")
         return redirect('team_roster')
-    if request.method == 'POST':
-        middleman = Middleman(
-            middleman_code=_next_code(Middleman, 'M'),
-            name=request.POST['name'],
-            email=request.POST.get('email', ''),
-            phone=request.POST.get('phone', ''),
-            contact=request.POST.get('contact', ''),
-            notes=request.POST.get('notes', ''),
-        )
-        middleman.save()
-        messages.success(request, f"Middleman {middleman.middleman_code} created.")
-        return redirect('middleman_detail', pk=middleman.pk)
-
-    return render(request, 'middlemen/form.html', {'middleman': None})
+    return _person_create(
+        request,
+        kind='middleman',
+        Model=Middleman,
+        code_prefix='M',
+        profile_attr='middleman_profile',
+        role_value=User.Role.MIDDLEMAN,
+        form_template='middlemen/form.html',
+        detail_url_name='middleman_detail',
+    )
 
 
 @login_required
@@ -487,19 +515,138 @@ def worker_create(request):
     if not request.user.is_admin_user() and request.user.active_role != 'middleman':
         messages.error(request, "Access restricted.")
         return redirect('team_roster')
-    if request.method == 'POST':
-        worker = Worker(
-            worker_code=_next_code(Worker, 'W'),
-            name=request.POST['name'],
-            contact=request.POST.get('contact', ''),
-            notes=request.POST.get('notes', ''),
-            is_owner=request.POST.get('is_owner') == 'on',
-        )
-        worker.save()
-        messages.success(request, f"Worker {worker.worker_code} created.")
-        return redirect('worker_detail', pk=worker.pk)
+    return _person_create(
+        request,
+        kind='worker',
+        Model=Worker,
+        code_prefix='W',
+        profile_attr='worker_profile',
+        role_value=User.Role.WORKER,
+        form_template='workers/form.html',
+        detail_url_name='worker_detail',
+    )
 
-    return render(request, 'workers/form.html', {'worker': None})
+
+def _person_create(request, *, kind, Model, code_prefix, profile_attr, role_value, form_template, detail_url_name):
+    """Shared create flow for Worker / Middleman. Always provisions a User (link or create)."""
+    import secrets
+
+    # Users available to be linked: those without this kind of profile yet.
+    available_users = User.objects.filter(**{f'{profile_attr}__isnull': True}).order_by('username')
+
+    _FORM_DEFAULTS = {
+        'name': '', 'contact': '', 'notes': '', 'email': '', 'phone': '',
+        'login_mode': '', 'existing_user_id': '', 'new_username': '',
+        'new_email': '', 'password_mode': 'auto', 'new_password': '',
+        'is_owner': False,
+    }
+
+    def _form_ctx(form_data=None):
+        ctx = {
+            kind: None,
+            'available_users': available_users,
+            'form': form_data if form_data is not None else _FORM_DEFAULTS,
+        }
+        # The legacy templates also check `worker`/`middleman` truthiness; keep both keys.
+        return ctx
+
+    if request.method != 'POST':
+        return render(request, form_template, _form_ctx())
+
+    post = request.POST
+    form_data = {k: post.get(k, '') for k in (
+        'name', 'contact', 'notes', 'email', 'phone',
+        'login_mode', 'existing_user_id',
+        'new_username', 'new_email', 'password_mode', 'new_password',
+    )}
+    form_data['is_owner'] = post.get('is_owner') == 'on'
+
+    name = post.get('name', '').strip()
+    if not name:
+        messages.error(request, "Name is required.")
+        return render(request, form_template, _form_ctx(form_data))
+
+    login_mode = post.get('login_mode', '')
+    linked_user = None
+    plaintext_password = None  # set only when auto-generating
+
+    if login_mode == 'link':
+        user_id = post.get('existing_user_id')
+        if not user_id:
+            messages.error(request, "Select a user to link.")
+            return render(request, form_template, _form_ctx(form_data))
+        try:
+            linked_user = User.objects.get(pk=user_id, **{f'{profile_attr}__isnull': True})
+        except User.DoesNotExist:
+            messages.error(request, "Selected user is not available.")
+            return render(request, form_template, _form_ctx(form_data))
+        if not linked_user.roles.filter(role=role_value).exists():
+            UserRole.objects.create(user=linked_user, role=role_value)
+
+    elif login_mode == 'create':
+        username = post.get('new_username', '').strip()
+        email = post.get('new_email', '').strip()
+        password_mode = post.get('password_mode', 'auto')
+        if not username:
+            messages.error(request, "Username is required.")
+            return render(request, form_template, _form_ctx(form_data))
+        if User.objects.filter(username=username).exists():
+            messages.error(request, f"Username '{username}' already exists.")
+            return render(request, form_template, _form_ctx(form_data))
+        if password_mode == 'custom':
+            pw = post.get('new_password', '')
+            if not pw:
+                messages.error(request, "Password is required.")
+                return render(request, form_template, _form_ctx(form_data))
+        else:
+            pw = secrets.token_urlsafe(9)
+            plaintext_password = pw
+        linked_user = User.objects.create_user(username=username, email=email, password=pw)
+        linked_user.active_role = role_value
+        linked_user.save()
+        UserRole.objects.create(user=linked_user, role=role_value)
+        if email:
+            _send_invitation_quietly(request, email, username, pw)
+
+    else:
+        messages.error(request, "Choose how to set up the login account.")
+        return render(request, form_template, _form_ctx(form_data))
+
+    if kind == 'worker':
+        person = Worker.objects.create(
+            worker_code=_next_code(Worker, code_prefix),
+            name=name,
+            contact=post.get('contact', ''),
+            notes=post.get('notes', ''),
+            is_owner=post.get('is_owner') == 'on',
+            user=linked_user,
+        )
+        label = f"Worker {person.worker_code}"
+    else:
+        person = Middleman.objects.create(
+            middleman_code=_next_code(Middleman, code_prefix),
+            name=name,
+            email=post.get('email', ''),
+            phone=post.get('phone', ''),
+            contact=post.get('contact', ''),
+            notes=post.get('notes', ''),
+            user=linked_user,
+        )
+        label = f"Middleman {person.middleman_code}"
+
+    messages.success(request, f"{label} created.")
+
+    if plaintext_password:
+        return render(request, 'team/credentials.html', {
+            'kind_label': kind.title(),
+            'subject_name': person.name,
+            'subject_pk': person.pk,
+            'detail_url_name': detail_url_name,
+            'username': linked_user.username,
+            'password': plaintext_password,
+        })
+
+    return redirect(detail_url_name, pk=person.pk)
 
 
 @login_required
@@ -699,12 +846,10 @@ def settings_create(request):
     if request.method == 'POST':
         rules = {
             'currency_default': request.POST.get('currency_default', 'USD'),
-            'connect_cost_per_unit': float(request.POST.get('connect_cost_per_unit', 0.15)),
             'platform_fee': {
                 'enabled': request.POST.get('platform_fee_enabled') == 'on',
                 'mode': request.POST.get('platform_fee_mode', 'percent'),
                 'value': float(request.POST.get('platform_fee_value', 0)),
-                'apply_on': request.POST.get('platform_fee_apply_on', 'net'),
             },
         }
         sv = SettingsVersion(
@@ -790,6 +935,54 @@ def branding_settings(request):
     return render(request, 'settings/branding.html', {'branding': branding})
 
 
+@login_required
+def smtp_settings(request):
+    if not request.user.is_admin_user():
+        return redirect('dashboard')
+    from .models import SmtpSettings
+    smtp = SmtpSettings.get()
+    if request.method == 'POST':
+        smtp.is_enabled = request.POST.get('is_enabled') == 'on'
+        smtp.host = request.POST.get('host', '').strip()
+        smtp.port = int(request.POST.get('port') or 587)
+        smtp.username = request.POST.get('username', '').strip()
+        pw = request.POST.get('password', '')
+        if pw:
+            smtp.password = pw
+        smtp.use_tls = request.POST.get('use_tls') == 'on'
+        smtp.use_ssl = request.POST.get('use_ssl') == 'on'
+        smtp.from_email = request.POST.get('from_email', '').strip()
+        smtp.from_name = request.POST.get('from_name', '').strip()
+        smtp.save()
+        messages.success(request, "SMTP settings saved.")
+        return redirect('smtp_settings')
+    return render(request, 'settings/smtp.html', {'smtp': smtp})
+
+
+@login_required
+def smtp_test(request):
+    if not request.user.is_admin_user():
+        return redirect('dashboard')
+    if request.method == 'POST':
+        to_email = request.POST.get('test_email', '').strip()
+        if not to_email:
+            messages.error(request, "Enter a recipient email address.")
+            return redirect('smtp_settings')
+        try:
+            from .services.email import send_email
+            from .models import AppSettings
+            app_name = AppSettings.get().app_name
+            send_email(
+                to=to_email,
+                subject=f'Test Email from {app_name}',
+                body=f'This is a test email sent from {app_name} to confirm your SMTP configuration is working.',
+            )
+            messages.success(request, f"Test email sent to {to_email}.")
+        except Exception as e:
+            messages.error(request, f"Failed: {e}")
+    return redirect('smtp_settings')
+
+
 # ──────────────────────────────────────────────
 # Receipts (nested under jobs)
 # ──────────────────────────────────────────────
@@ -851,8 +1044,8 @@ def receipt_create(request, job_pk):
 
         # Compute deductions and create ReceiptDistribution rows
         if alloc_data:
-            connect_ded, pf = get_receipt_deductions(job, receipt)
-            distributions = compute_receipt_distributions(receipt, alloc_data, connect_ded, pf)
+            pf = get_receipt_deductions(job, receipt)
+            distributions = compute_receipt_distributions(receipt, alloc_data, pf)
             for dist in distributions:
                 ReceiptDistribution.objects.create(
                     receipt=receipt,
@@ -917,8 +1110,8 @@ def receipt_edit(request, pk):
                     'share_value': str(d['share_value']),
                 } for d in old_distributions]
 
-                connect_ded, pf = get_receipt_deductions(job, receipt)
-                new_dists = compute_receipt_distributions(receipt, alloc_data, connect_ded, pf)
+                pf = get_receipt_deductions(job, receipt)
+                new_dists = compute_receipt_distributions(receipt, alloc_data, pf)
                 for dist in new_dists:
                     ReceiptDistribution.objects.create(
                         receipt=receipt,
@@ -1230,22 +1423,161 @@ def user_create(request):
             )
 
         messages.success(request, f"User '{username}' created.")
+        if email:
+            _send_invitation_quietly(request, email, username, password)
         return redirect('user_list')
 
     return render(request, 'users/form.html', {'user_obj': None})
 
 
 @login_required
+def user_resend_invitation(request, pk):
+    import secrets
+    if not request.user.is_admin_user():
+        messages.error(request, "Admin access required.")
+        return redirect('user_list')
+    if request.method != 'POST':
+        return redirect('user_list')
+
+    target = get_object_or_404(User, pk=pk)
+    if not target.email:
+        messages.error(request, f"User '{target.username}' has no email address — cannot send invitation.")
+        return redirect('user_list')
+
+    new_password = secrets.token_urlsafe(9)
+    target.set_password(new_password)
+    target.save(update_fields=['password'])
+
+    _send_invitation_quietly(request, target.email, target.username, new_password)
+    return redirect('user_list')
+
+
+@login_required
 def user_detail(request, pk):
     if not request.user.is_admin_user():
         return redirect('dashboard')
-    from .models import User
     user_obj = get_object_or_404(User.objects.prefetch_related('roles'), pk=pk)
     return render(request, 'users/detail.html', {
         'user_obj': user_obj,
         'worker': getattr(user_obj, 'worker_profile', None),
         'middleman': getattr(user_obj, 'middleman_profile', None),
+        'is_self': user_obj.pk == request.user.pk,
     })
+
+
+# ──────────────────────────────────────────────
+# Account deletion (self + admin)
+# ──────────────────────────────────────────────
+
+def _archive_and_unlink(user_obj):
+    """Archive the linked Worker / Middleman profiles and unlink them from the user."""
+    worker = getattr(user_obj, 'worker_profile', None)
+    if worker:
+        worker.is_archived = True
+        worker.user = None
+        worker.save()
+    middleman = getattr(user_obj, 'middleman_profile', None)
+    if middleman:
+        middleman.is_archived = True
+        middleman.user = None
+        middleman.save()
+
+
+@login_required
+def account_self_delete(request):
+    if request.method != 'POST':
+        return redirect('profile')
+    if request.user.is_admin_user():
+        # Admins delete themselves via the user-management page (with the "last admin" guard).
+        messages.error(request, "Admins cannot self-delete from the profile page. Use the User Management page.")
+        return redirect('profile')
+
+    if request.POST.get('confirm_username', '').strip() != request.user.username:
+        messages.error(request, "Username confirmation didn't match. Account not deleted.")
+        return redirect('profile')
+
+    from django.contrib.auth import logout
+    user_obj = request.user
+    _archive_and_unlink(user_obj)
+    username = user_obj.username
+    logout(request)
+    user_obj.delete()
+    messages.success(request, f"Account '{username}' deleted.")
+    return redirect('login')
+
+
+@login_required
+def user_delete(request, pk):
+    if not request.user.is_admin_user():
+        return redirect('dashboard')
+    if request.method != 'POST':
+        return redirect('user_detail', pk=pk)
+
+    user_obj = get_object_or_404(User, pk=pk)
+
+    if user_obj.pk == request.user.pk:
+        messages.error(request, "You cannot delete your own admin account here. Have another admin do it.")
+        return redirect('user_detail', pk=pk)
+
+    if user_obj.is_admin_user():
+        remaining_admins = User.objects.filter(roles__role=User.Role.ADMIN).exclude(pk=user_obj.pk).count()
+        if remaining_admins == 0 and not User.objects.filter(is_superuser=True).exclude(pk=user_obj.pk).exists():
+            messages.error(request, "Cannot delete the last admin account.")
+            return redirect('user_detail', pk=pk)
+
+    _archive_and_unlink(user_obj)
+    username = user_obj.username
+    user_obj.delete()
+    messages.success(request, f"User '{username}' deleted; their worker/middleman profiles were archived.")
+    return redirect('user_list')
+
+
+@login_required
+def user_delete_worker_profile(request, pk):
+    if not request.user.is_admin_user():
+        return redirect('dashboard')
+    if request.method != 'POST':
+        return redirect('user_detail', pk=pk)
+    user_obj = get_object_or_404(User, pk=pk)
+    worker = getattr(user_obj, 'worker_profile', None)
+    if not worker:
+        messages.error(request, "No worker profile to delete.")
+        return redirect('user_detail', pk=pk)
+
+    worker.is_archived = True
+    worker.user = None
+    worker.save()
+    user_obj.roles.filter(role=User.Role.WORKER).delete()
+    if user_obj.active_role == User.Role.WORKER:
+        remaining = list(user_obj.roles.values_list('role', flat=True))
+        user_obj.active_role = remaining[0] if remaining else User.Role.WORKER
+        user_obj.save()
+    messages.success(request, f"Worker profile for '{user_obj.username}' archived and unlinked.")
+    return redirect('user_detail', pk=pk)
+
+
+@login_required
+def user_delete_middleman_profile(request, pk):
+    if not request.user.is_admin_user():
+        return redirect('dashboard')
+    if request.method != 'POST':
+        return redirect('user_detail', pk=pk)
+    user_obj = get_object_or_404(User, pk=pk)
+    middleman = getattr(user_obj, 'middleman_profile', None)
+    if not middleman:
+        messages.error(request, "No middleman profile to delete.")
+        return redirect('user_detail', pk=pk)
+
+    middleman.is_archived = True
+    middleman.user = None
+    middleman.save()
+    user_obj.roles.filter(role=User.Role.MIDDLEMAN).delete()
+    if user_obj.active_role == User.Role.MIDDLEMAN:
+        remaining = list(user_obj.roles.values_list('role', flat=True))
+        user_obj.active_role = remaining[0] if remaining else User.Role.WORKER
+        user_obj.save()
+    messages.success(request, f"Middleman profile for '{user_obj.username}' archived and unlinked.")
+    return redirect('user_detail', pk=pk)
 
 
 @login_required
@@ -1322,82 +1654,121 @@ def get_visible_jobs(user):
 # Phase 8: Expenses
 # ──────────────────────────────────────────────
 
-from .models import Expense
-
-
 @login_required
 def expense_list(request):
-    if not request.user.is_admin_user() and request.user.active_role == 'worker':
-        messages.error(request, "Access restricted.")
-        return redirect('dashboard')
-
-    expenses = Expense.objects.all()
-    if not request.user.is_admin_user() and request.user.active_role == 'middleman':
-        expenses = expenses.filter(created_by=request.user)
+    expenses = Expense.objects.select_related('created_by', 'vendor').all()
 
     category = request.GET.get('category')
+    vendor_id = request.GET.get('vendor')
+    submitted_by = request.GET.get('submitted_by')
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
     if category:
-        expenses = expenses.filter(category=category)
+        expenses = expenses.filter(category_id=category)
+    if vendor_id:
+        expenses = expenses.filter(vendor_id=vendor_id)
+    if submitted_by:
+        expenses = expenses.filter(created_by_id=submitted_by)
     if date_from:
         expenses = expenses.filter(expense_date__gte=date_from)
     if date_to:
         expenses = expenses.filter(expense_date__lte=date_to)
 
     total = expenses.aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
+    vendors = Vendor.objects.filter(is_archived=False)
+    all_users = User.objects.filter(is_active=True).order_by('username') if request.user.is_admin_user() else None
     return render(request, 'expenses/list.html', {
-        'expenses': expenses, 'total': total,
-        'categories': Expense.Category.choices,
-        'filters': {'category': category, 'date_from': date_from, 'date_to': date_to},
+        'expenses': expenses,
+        'total': total,
+        'categories': ExpenseCategory.objects.filter(is_archived=False),
+        'vendors': vendors,
+        'all_users': all_users,
+        'filters': {
+            'category': category, 'vendor': vendor_id,
+            'submitted_by': submitted_by,
+            'date_from': date_from, 'date_to': date_to,
+        },
     })
 
 
 @login_required
 def expense_create(request):
     if request.method == 'POST':
+        vendor_id = request.POST.get('vendor') or None
+        if request.user.is_admin_user():
+            owner_id = request.POST.get('created_by') or None
+            owner = User.objects.filter(pk=owner_id).first() if owner_id else request.user
+        else:
+            owner = request.user
         Expense.objects.create(
             expense_code=_next_code(Expense, 'E', pad=3),
             expense_date=request.POST['expense_date'],
             amount=request.POST['amount'],
-            category=request.POST.get('category', 'other'),
+            category_id=request.POST.get('category') or None,
             description=request.POST['description'],
-            vendor=request.POST.get('vendor', ''),
+            vendor_id=vendor_id,
             reference=request.POST.get('reference', ''),
             notes=request.POST.get('notes', ''),
-            created_by=request.user,
+            created_by=owner,
         )
         messages.success(request, "Expense recorded.")
         return redirect('expense_list')
-    return render(request, 'expenses/form.html', {'expense': None, 'categories': Expense.Category.choices})
+    vendors = Vendor.objects.filter(is_archived=False)
+    all_users = User.objects.filter(is_active=True).order_by('username') if request.user.is_admin_user() else None
+    return render(request, 'expenses/form.html', {
+        'expense': None,
+        'categories': ExpenseCategory.objects.filter(is_archived=False),
+        'vendors': vendors,
+        'all_users': all_users,
+    })
 
 
 @login_required
 def expense_detail(request, pk):
-    return render(request, 'expenses/detail.html', {'expense': get_object_or_404(Expense, pk=pk)})
+    return render(request, 'expenses/detail.html', {
+        'expense': get_object_or_404(Expense.objects.select_related('created_by', 'vendor'), pk=pk),
+    })
 
 
 @login_required
 def expense_edit(request, pk):
     expense = get_object_or_404(Expense, pk=pk)
+    if not request.user.is_admin_user() and expense.created_by != request.user:
+        messages.error(request, "You can only edit your own expenses.")
+        return redirect('expense_list')
     if request.method == 'POST':
         expense.expense_date = request.POST['expense_date']
         expense.amount = request.POST['amount']
-        expense.category = request.POST.get('category', expense.category)
+        expense.category_id = request.POST.get('category') or None
         expense.description = request.POST['description']
-        expense.vendor = request.POST.get('vendor', '')
+        expense.vendor_id = request.POST.get('vendor') or None
         expense.reference = request.POST.get('reference', '')
         expense.notes = request.POST.get('notes', '')
+        if request.user.is_admin_user():
+            owner_id = request.POST.get('created_by') or None
+            if owner_id:
+                expense.created_by = User.objects.filter(pk=owner_id).first()
         expense.save()
         messages.success(request, "Expense updated.")
         return redirect('expense_detail', pk=pk)
-    return render(request, 'expenses/form.html', {'expense': expense, 'categories': Expense.Category.choices})
+    vendors = Vendor.objects.filter(is_archived=False)
+    all_users = User.objects.filter(is_active=True).order_by('username') if request.user.is_admin_user() else None
+    return render(request, 'expenses/form.html', {
+        'expense': expense,
+        'categories': ExpenseCategory.objects.filter(is_archived=False),
+        'vendors': vendors,
+        'all_users': all_users,
+    })
 
 
 @login_required
 def expense_delete(request, pk):
+    expense = get_object_or_404(Expense, pk=pk)
+    if not request.user.is_admin_user() and expense.created_by != request.user:
+        messages.error(request, "You can only delete your own expenses.")
+        return redirect('expense_list')
     if request.method == 'POST':
-        get_object_or_404(Expense, pk=pk).delete()
+        expense.delete()
         messages.success(request, "Expense deleted.")
     return redirect('expense_list')
 

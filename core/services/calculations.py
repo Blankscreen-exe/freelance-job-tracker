@@ -30,21 +30,16 @@ def get_settings_rules(settings_version):
 
 
 def get_job_totals(job):
-    """Calculate job totals: received, connect deduction, platform fee, net distributable.
+    """Calculate job totals: received, platform fee, net distributable.
 
     Uses the job's own settings_version (or overrides) for calculation rules.
-    Returns dict with keys: total_received, connect_deduction, platform_fee, net_distributable.
+    Returns dict with keys: total_received, platform_fee, net_distributable.
     """
     rules = get_settings_rules(job.settings_version)
 
     # Total received from all receipts
     agg = job.receipts.aggregate(total=Sum('amount_received'))
     total_received = Decimal(str(agg['total'] or 0))
-
-    # Connect deduction: connects_used × connect_cost_per_unit
-    connects_used = job.connects_used or 0
-    connect_cost_per_unit = Decimal(str(rules.get('connect_cost_per_unit', 0)))
-    connect_deduction = quantize_decimal(Decimal(connects_used) * connect_cost_per_unit)
 
     # Platform fee
     platform_fee_enabled = job.platform_fee_override_enabled
@@ -60,22 +55,18 @@ def get_job_totals(job):
             if job.platform_fee_override_value is not None
             else Decimal(str(pf_rules.get('value', 0)))
         )
-        pf_apply_on = job.platform_fee_override_apply_on or pf_rules.get('apply_on', 'net')
-
-        base_amount = total_received if pf_apply_on == 'gross' else (total_received - connect_deduction)
 
         if pf_mode == 'percent':
-            platform_fee = base_amount * pf_value
+            platform_fee = total_received * pf_value
         else:  # fixed
             platform_fee = pf_value
 
         platform_fee = quantize_decimal(platform_fee)
 
-    net_distributable = quantize_decimal(total_received - connect_deduction - platform_fee)
+    net_distributable = quantize_decimal(total_received - platform_fee)
 
     return {
         'total_received': total_received,
-        'connect_deduction': connect_deduction,
         'platform_fee': platform_fee,
         'net_distributable': net_distributable,
     }
@@ -108,24 +99,23 @@ def compute_allocations(job, net_distributable=None):
     return results
 
 
-def compute_receipt_distributions(receipt, allocations, connect_deduction, platform_fee):
+def compute_receipt_distributions(receipt, allocations, platform_fee):
     """Compute the distribution amounts for a single receipt given specific allocations.
 
     This is called when creating a receipt to calculate what each worker gets.
-    It handles proportional connect/platform fee distribution per receipt.
+    It handles proportional platform fee distribution per receipt.
 
     Args:
         receipt: Receipt instance
         allocations: list of dicts with keys: worker, label, share_type, share_value
                      (can come from JobAllocation or custom overrides)
-        connect_deduction: Decimal connect deduction for this receipt
         platform_fee: Decimal platform fee for this receipt
 
     Returns:
         list of dicts: [{worker, label, share_type, share_value, computed_amount}, ...]
     """
     amount = Decimal(str(receipt.amount_received))
-    net = quantize_decimal(amount - connect_deduction - platform_fee)
+    net = quantize_decimal(amount - platform_fee)
 
     # Calculate total share for proportional distribution
     total_share = Decimal(0)
@@ -162,29 +152,10 @@ def compute_receipt_distributions(receipt, allocations, connect_deduction, platf
 
 
 def get_receipt_deductions(job, receipt):
-    """Calculate connect deduction and platform fee for a single receipt.
-
-    Connect cost is distributed proportionally across all receipts by amount.
-    """
+    """Calculate platform fee for a single receipt."""
     rules = get_settings_rules(job.settings_version)
-
-    # Connect deduction proportional to this receipt
-    connects_used = job.connects_used or 0
-    connect_cost_per_unit = Decimal(str(rules.get('connect_cost_per_unit', 0)))
-    total_connect_cost = Decimal(connects_used) * connect_cost_per_unit
-
-    # Get total received across all receipts to compute proportional share
-    agg = job.receipts.aggregate(total=Sum('amount_received'))
-    total_all = Decimal(str(agg['total'] or 0))
     receipt_amount = Decimal(str(receipt.amount_received))
 
-    if total_all > 0:
-        receipt_share = receipt_amount / total_all
-        connect_deduction = quantize_decimal(total_connect_cost * receipt_share)
-    else:
-        connect_deduction = quantize_decimal(total_connect_cost)
-
-    # Platform fee for this receipt
     platform_fee_enabled = job.platform_fee_override_enabled
     if platform_fee_enabled is None:
         platform_fee_enabled = rules.get('platform_fee', {}).get('enabled', False)
@@ -198,18 +169,15 @@ def get_receipt_deductions(job, receipt):
             if job.platform_fee_override_value is not None
             else Decimal(str(pf_rules.get('value', 0)))
         )
-        pf_apply_on = job.platform_fee_override_apply_on or pf_rules.get('apply_on', 'net')
-
-        base = receipt_amount if pf_apply_on == 'gross' else (receipt_amount - connect_deduction)
 
         if pf_mode == 'percent':
-            platform_fee = base * pf_value
+            platform_fee = receipt_amount * pf_value
         else:
             platform_fee = pf_value
 
         platform_fee = quantize_decimal(platform_fee)
 
-    return connect_deduction, platform_fee
+    return platform_fee
 
 
 def compute_worker_totals(worker):
@@ -256,8 +224,7 @@ def get_dashboard_totals(jobs_queryset=None):
     agg = Receipt.objects.filter(job_id__in=job_ids).aggregate(total=Sum('amount_received'))
     total_received = Decimal(str(agg['total'] or 0))
 
-    # Calculate connect + platform fee per job
-    total_connects = Decimal(0)
+    # Calculate platform fee per job
     total_platform_fee = Decimal(0)
 
     for job in jobs_queryset.select_related('settings_version').iterator():
@@ -265,14 +232,12 @@ def get_dashboard_totals(jobs_queryset=None):
             try:
                 snapshot_data = job.snapshot.data
                 totals = snapshot_data.get('totals', {})
-                total_connects += Decimal(str(totals.get('connect_deduction', 0)))
                 total_platform_fee += Decimal(str(totals.get('platform_fee', 0)))
                 continue
             except JobCalculationSnapshot.DoesNotExist:
                 pass
 
         totals = get_job_totals(job)
-        total_connects += totals['connect_deduction']
         total_platform_fee += totals['platform_fee']
 
     # Total paid (only actually paid payments for these jobs)
@@ -292,7 +257,6 @@ def get_dashboard_totals(jobs_queryset=None):
 
     return {
         'total_received': quantize_decimal(total_received),
-        'total_connects': quantize_decimal(total_connects),
         'total_platform_fee': quantize_decimal(total_platform_fee),
         'total_paid': quantize_decimal(total_paid),
         'total_due': quantize_decimal(total_due),

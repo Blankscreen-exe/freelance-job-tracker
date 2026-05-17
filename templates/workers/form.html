@@ -9,22 +9,27 @@
             {% csrf_token %}
             <div class="mb-3">
                 <label class="form-label">Name <span class="text-danger">*</span></label>
-                <input type="text" name="name" class="form-control" value="{{ worker.name|default:'' }}" required>
+                <input type="text" name="name" class="form-control" value="{{ worker.name|default:form.name|default:'' }}" required>
             </div>
             <div class="mb-3">
                 <label class="form-label">Contact</label>
-                <input type="text" name="contact" class="form-control" value="{{ worker.contact|default:'' }}" placeholder="Email, phone, etc.">
+                <input type="text" name="contact" class="form-control" value="{{ worker.contact|default:form.contact|default:'' }}" placeholder="Email, phone, etc.">
             </div>
             <div class="mb-3">
                 <label class="form-label">Notes</label>
-                <textarea name="notes" class="form-control" rows="3">{{ worker.notes|default:'' }}</textarea>
+                <textarea name="notes" class="form-control" rows="3">{{ worker.notes|default:form.notes|default:'' }}</textarea>
             </div>
             <div class="form-check mb-3">
                 <input class="form-check-input" type="checkbox" name="is_owner" id="isOwner"
-                       {% if worker.is_owner %}checked{% endif %}>
+                       {% if worker.is_owner or form.is_owner %}checked{% endif %}>
                 <label class="form-check-label" for="isOwner">This is the agency owner's worker entity</label>
                 <small class="form-text text-muted d-block">Owner allocations count toward owner earnings in profit calculations</small>
             </div>
+
+            {% if not worker %}
+            {% include "team/_login_account_section.html" with role_label="worker" %}
+            {% endif %}
+
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> {{ worker|yesno:"Update,Create" }} Worker</button>
                 {% if worker %}

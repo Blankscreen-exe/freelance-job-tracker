@@ -2,6 +2,7 @@ import json
 from decimal import Decimal
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from core.utils.encryption import EncryptedTextField
 
 
 # ──────────────────────────────────────────────
@@ -228,13 +229,9 @@ class SettingsVersion(models.Model):
     def rules(self, value):
         self.rules_json = json.dumps(value)
 
-    def get_connect_default(self):
-        r = self.rules
-        return r.get('connect_default', {'mode': 'percent', 'value': 0.05})
-
     def get_platform_fee(self):
         r = self.rules
-        return r.get('platform_fee', {'enabled': False, 'mode': 'percent', 'value': 0, 'apply_on': 'net'})
+        return r.get('platform_fee', {'enabled': False, 'mode': 'percent', 'value': 0, 'apply_on': 'gross'})
 
 
 # ──────────────────────────────────────────────
@@ -272,9 +269,6 @@ class Job(models.Model):
     job_post_url = models.URLField(max_length=500, blank=True, default='')
     description = models.TextField(blank=True, default='')
     cover_letter = models.TextField(blank=True, default='')
-    upwork_job_id = models.CharField(max_length=100, blank=True, default='')
-    upwork_contract_id = models.CharField(max_length=100, blank=True, default='')
-    upwork_offer_id = models.CharField(max_length=100, blank=True, default='')
     job_type = models.CharField(max_length=10, choices=JobType.choices, default=JobType.FIXED)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     contract_value = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
@@ -288,12 +282,7 @@ class Job(models.Model):
     # Versioned settings
     settings_version = models.ForeignKey(SettingsVersion, on_delete=models.SET_NULL, null=True, blank=True)
 
-    # Connects
-    connects_used = models.IntegerField(default=0)
-
     # Overrides (job-specific)
-    connect_override_mode = models.CharField(max_length=30, blank=True, default='')
-    connect_override_value = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
     platform_fee_override_enabled = models.BooleanField(null=True, blank=True)
     platform_fee_override_mode = models.CharField(max_length=30, blank=True, default='')
     platform_fee_override_value = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
@@ -309,6 +298,18 @@ class Job(models.Model):
 
     def __str__(self):
         return f"{self.job_code} - {self.title}"
+
+
+class JobNote(models.Model):
+    """Per-user private markdown notes on a job."""
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='notes')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='job_notes')
+    body = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('job', 'user')
 
 
 # ──────────────────────────────────────────────
@@ -432,25 +433,48 @@ class ReceiptDistribution(models.Model):
 
 
 # ──────────────────────────────────────────────
+# Vendor
+# ──────────────────────────────────────────────
+
+class Vendor(models.Model):
+    name = models.CharField(max_length=200)
+    is_archived = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+# ──────────────────────────────────────────────
+# Expense Category
+# ──────────────────────────────────────────────
+
+class ExpenseCategory(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    is_archived = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Expense Category'
+        verbose_name_plural = 'Expense Categories'
+
+    def __str__(self):
+        return self.name
+
+
+# ──────────────────────────────────────────────
 # Expense (agency-level business expenses)
 # ──────────────────────────────────────────────
 
 class Expense(models.Model):
-    class Category(models.TextChoices):
-        CONNECTS = 'connects', 'Connects'
-        TOOLS = 'tools', 'Tools'
-        SOFTWARE = 'software', 'Software'
-        SUBSCRIPTION = 'subscription', 'Subscription'
-        MARKETING = 'marketing', 'Marketing'
-        OFFICE = 'office', 'Office'
-        OTHER = 'other', 'Other'
-
     expense_code = models.CharField(max_length=10, unique=True)  # E001, E002
     expense_date = models.DateField()
     amount = models.DecimalField(max_digits=12, decimal_places=2)
-    category = models.CharField(max_length=20, choices=Category.choices, default=Category.OTHER)
+    category = models.ForeignKey('ExpenseCategory', on_delete=models.SET_NULL, null=True, blank=True, related_name='expenses')
     description = models.CharField(max_length=300)
-    vendor = models.CharField(max_length=200, blank=True, default='')
+    vendor = models.ForeignKey('Vendor', on_delete=models.SET_NULL, null=True, blank=True, related_name='expenses')
     reference = models.CharField(max_length=200, blank=True, default='')  # receipt/invoice number
     notes = models.TextField(blank=True, default='')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_expenses')
@@ -512,3 +536,37 @@ class AppSettings(models.Model):
     def get(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+# ──────────────────────────────────────────────
+# SMTP Settings (singleton email configuration)
+# ──────────────────────────────────────────────
+
+class SmtpSettings(models.Model):
+    is_enabled = models.BooleanField(default=False)
+    host = models.CharField(max_length=200, blank=True, default='')
+    port = models.PositiveIntegerField(default=587)
+    username = models.CharField(max_length=200, blank=True, default='')
+    password = EncryptedTextField(blank=True, default='')
+    use_tls = models.BooleanField(default=True)
+    use_ssl = models.BooleanField(default=False)
+    from_email = models.EmailField(blank=True, default='')
+    from_name = models.CharField(max_length=100, blank=True, default='')
+
+    class Meta:
+        verbose_name = 'SMTP Settings'
+        verbose_name_plural = 'SMTP Settings'
+
+    def __str__(self):
+        return 'SMTP Settings'
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    @property
+    def sender(self):
+        if self.from_name and self.from_email:
+            return f'{self.from_name} <{self.from_email}>'
+        return self.from_email or self.username

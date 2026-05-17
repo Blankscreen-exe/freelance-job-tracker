@@ -14,9 +14,10 @@
             <dl class="row mb-0">
                 <dt class="col-sm-4">Date</dt><dd class="col-sm-8">{{ expense.expense_date|date:"M d, Y" }}</dd>
                 <dt class="col-sm-4">Amount</dt><dd class="col-sm-8"><strong class="text-danger">${{ expense.amount|floatformat:2 }}</strong></dd>
-                <dt class="col-sm-4">Category</dt><dd class="col-sm-8">{{ expense.get_category_display }}</dd>
+                <dt class="col-sm-4">Category</dt><dd class="col-sm-8">{{ expense.category.name|default:"—" }}</dd>
                 <dt class="col-sm-4">Description</dt><dd class="col-sm-8">{{ expense.description }}</dd>
-                <dt class="col-sm-4">Vendor</dt><dd class="col-sm-8">{{ expense.vendor|default:"-" }}</dd>
+                <dt class="col-sm-4">Vendor</dt><dd class="col-sm-8">{{ expense.vendor.name|default:"-" }}</dd>
+                <dt class="col-sm-4">Submitted By</dt><dd class="col-sm-8">{{ expense.created_by.username|default:"-" }}</dd>
                 <dt class="col-sm-4">Reference</dt><dd class="col-sm-8">{{ expense.reference|default:"-" }}</dd>
                 {% if expense.notes %}
                 <dt class="col-sm-4">Notes</dt><dd class="col-sm-8">{{ expense.notes|linebreaksbr }}</dd>

@@ -13,25 +13,45 @@
 
 <div class="card mb-4">
     <div class="card-body">
-        <form method="GET" class="row g-3 align-items-end">
-            <div class="col-md-3">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-2">
                 <label class="form-label small">Category</label>
                 <select name="category" class="form-select form-select-sm">
                     <option value="">All</option>
-                    {% for val, label in categories %}
-                    <option value="{{ val }}" {% if filters.category == val %}selected{% endif %}>{{ label }}</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.pk }}" {% if filters.category == cat.pk|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
+                <label class="form-label small">Vendor</label>
+                <select name="vendor" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    {% for v in vendors %}
+                    <option value="{{ v.pk }}" {% if filters.vendor == v.pk|stringformat:"s" %}selected{% endif %}>{{ v.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% if all_users %}
+            <div class="col-md-2">
+                <label class="form-label small">Submitted By</label>
+                <select name="submitted_by" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    {% for u in all_users %}
+                    <option value="{{ u.pk }}" {% if filters.submitted_by == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="col-md-2">
                 <label class="form-label small">From</label>
                 <input type="date" name="date_from" class="form-control form-control-sm" value="{{ filters.date_from|default:'' }}">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label small">To</label>
                 <input type="date" name="date_to" class="form-control form-control-sm" value="{{ filters.date_to|default:'' }}">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <button type="submit" class="btn btn-sm btn-primary w-100">Filter</button>
             </div>
         </form>
@@ -40,25 +60,47 @@
 
 <div class="table-responsive">
     <table class="table table-hover">
-        <thead><tr><th>Code</th><th>Date</th><th>Description</th><th>Category</th><th>Amount</th><th>Vendor</th><th>Actions</th></tr></thead>
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Amount</th>
+                <th>Vendor</th>
+                <th>Submitted By</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
         <tbody>
             {% for e in expenses %}
             <tr>
                 <td><a href="{% url 'expense_detail' e.pk %}"><strong>{{ e.expense_code }}</strong></a></td>
                 <td>{{ e.expense_date|date:"M d, Y" }}</td>
                 <td>{{ e.description|truncatewords:8 }}</td>
-                <td><span class="badge bg-secondary">{{ e.get_category_display }}</span></td>
+                <td><span class="badge bg-secondary">{{ e.category.name|default:"—" }}</span></td>
                 <td>${{ e.amount|floatformat:2 }}</td>
-                <td>{{ e.vendor|default:"-" }}</td>
+                <td>{{ e.vendor.name|default:"-" }}</td>
                 <td>
+                    {% if e.created_by %}
+                    <span class="{% if e.created_by == request.user %}fw-semibold text-primary{% else %}text-muted{% endif %}">
+                        {{ e.created_by.username }}
+                    </span>
+                    {% else %}-{% endif %}
+                </td>
+                <td>
+                    {% if request.user.is_superuser or e.created_by == request.user %}
                     <a href="{% url 'expense_edit' e.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
                     <form method="POST" action="{% url 'expense_delete' e.pk %}" class="d-inline" onsubmit="return confirm('Delete?')">
                         {% csrf_token %}<button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                     </form>
+                    {% else %}
+                    <span class="text-muted small">—</span>
+                    {% endif %}
                 </td>
             </tr>
             {% empty %}
-            <tr><td colspan="7" class="text-center text-muted py-4">No expenses recorded.</td></tr>
+            <tr><td colspan="8" class="text-center text-muted py-4">No expenses recorded.</td></tr>
             {% endfor %}
         </tbody>
     </table>

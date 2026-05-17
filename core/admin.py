@@ -4,7 +4,8 @@ from .models import (
     User, UserRole, Client, ClientContact, ClientCompany, ClientAddress,
     Middleman, Worker,
     SettingsVersion, Job, Receipt, JobAllocation,
-    Payment, JobCalculationSnapshot, ReceiptDistribution, Expense,
+    Payment, JobCalculationSnapshot, ReceiptDistribution, Expense, Vendor, ExpenseCategory,
+    SmtpSettings,
 )
 
 
@@ -129,8 +130,33 @@ class ReceiptDistributionAdmin(admin.ModelAdmin):
     list_filter = ('share_type',)
 
 
+@admin.register(Vendor)
+class VendorAdmin(admin.ModelAdmin):
+    list_display = ('name', 'is_archived')
+    list_filter = ('is_archived',)
+    search_fields = ('name',)
+
+
+@admin.register(ExpenseCategory)
+class ExpenseCategoryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'is_archived')
+    list_filter = ('is_archived',)
+    search_fields = ('name',)
+
+
 @admin.register(Expense)
 class ExpenseAdmin(admin.ModelAdmin):
     list_display = ('expense_code', 'description', 'amount', 'category', 'expense_date', 'vendor')
     list_filter = ('category', 'expense_date')
-    search_fields = ('description', 'vendor', 'expense_code')
+    search_fields = ('description', 'expense_code')
+
+
+@admin.register(SmtpSettings)
+class SmtpSettingsAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'host', 'port', 'username', 'is_enabled')
+
+    def has_add_permission(self, request):
+        return not SmtpSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False

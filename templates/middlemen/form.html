@@ -9,26 +9,31 @@
             {% csrf_token %}
             <div class="mb-3">
                 <label class="form-label">Name <span class="text-danger">*</span></label>
-                <input type="text" name="name" class="form-control" value="{{ middleman.name|default:'' }}" required>
+                <input type="text" name="name" class="form-control" value="{{ middleman.name|default:form.name|default:'' }}" required>
             </div>
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Email</label>
-                    <input type="email" name="email" class="form-control" value="{{ middleman.email|default:'' }}">
+                    <input type="email" name="email" class="form-control" value="{{ middleman.email|default:form.email|default:'' }}">
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Phone</label>
-                    <input type="text" name="phone" class="form-control" value="{{ middleman.phone|default:'' }}">
+                    <input type="text" name="phone" class="form-control" value="{{ middleman.phone|default:form.phone|default:'' }}">
                 </div>
             </div>
             <div class="mb-3">
                 <label class="form-label">Alternative Contact</label>
-                <input type="text" name="contact" class="form-control" value="{{ middleman.contact|default:'' }}" placeholder="Telegram, WhatsApp, etc.">
+                <input type="text" name="contact" class="form-control" value="{{ middleman.contact|default:form.contact|default:'' }}" placeholder="Telegram, WhatsApp, etc.">
             </div>
             <div class="mb-3">
                 <label class="form-label">Notes</label>
-                <textarea name="notes" class="form-control" rows="3">{{ middleman.notes|default:'' }}</textarea>
+                <textarea name="notes" class="form-control" rows="3">{{ middleman.notes|default:form.notes|default:'' }}</textarea>
             </div>
+
+            {% if not middleman %}
+            {% include "team/_login_account_section.html" with role_label="middleman" %}
+            {% endif %}
+
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> {{ middleman|yesno:"Update,Create" }} Middleman</button>
                 {% if middleman %}

@@ -71,13 +71,9 @@
                         <option value="archived" {% if job and job.status == 'archived' %}selected{% endif %}>Archived</option>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-6">
                     <label class="form-label">Contract Value ($)</label>
                     <input type="number" name="contract_value" step="0.01" class="form-control" value="{{ job.contract_value|default:'0.00' }}">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Connects Used</label>
-                    <input type="number" name="connects_used" class="form-control" value="{{ job.connects_used|default:'0' }}">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Commission Type</label>
@@ -123,27 +119,14 @@
         </div>
     </div>
 
-    <!-- Platform IDs & URL -->
+    <!-- Platform Link -->
     <div class="card mb-3">
-        <div class="card-header"><h6 class="mb-0">Platform Links</h6></div>
+        <div class="card-header"><h6 class="mb-0">Platform Link</h6></div>
         <div class="card-body">
-            <div class="row g-3">
-                <div class="col-12">
-                    <label class="form-label">Job Post URL</label>
-                    <input type="url" name="job_post_url" class="form-control" value="{{ job.job_post_url|default:'' }}">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Upwork Job ID</label>
-                    <input type="text" name="upwork_job_id" class="form-control" value="{{ job.upwork_job_id|default:'' }}">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Contract ID</label>
-                    <input type="text" name="upwork_contract_id" class="form-control" value="{{ job.upwork_contract_id|default:'' }}">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Offer ID</label>
-                    <input type="text" name="upwork_offer_id" class="form-control" value="{{ job.upwork_offer_id|default:'' }}">
-                </div>
+            <div class="mb-0">
+                <label class="form-label">Job Post URL</label>
+                <input type="url" name="job_post_url" class="form-control" value="{{ job.job_post_url|default:'' }}" placeholder="https://...">
+                <small class="form-text text-muted">Optional — leave blank for referrals or jobs without a public listing.</small>
             </div>
         </div>
     </div>

@@ -19,8 +19,21 @@
                 <td><span class="badge bg-primary">{{ u.active_role }}</span></td>
                 <td>{% for r in u.get_roles %}<span class="badge bg-secondary me-1">{{ r }}</span>{% endfor %}</td>
                 <td>{% if u.is_active %}<span class="badge bg-success">Yes</span>{% else %}<span class="badge bg-danger">No</span>{% endif %}</td>
-                <td>
+                <td class="d-flex gap-1">
                     <a href="{% url 'user_edit' u.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+                    {% if u.email %}
+                    <form method="POST" action="{% url 'user_resend_invitation' u.pk %}"
+                          onsubmit="return confirm('Reset password and resend invitation to {{ u.email|escapejs }}?')">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-info" title="Resend invitation to {{ u.email }}">
+                            <i class="bi bi-envelope-arrow-up"></i>
+                        </button>
+                    </form>
+                    {% else %}
+                    <button class="btn btn-sm btn-outline-secondary disabled" title="No email address — cannot send invitation">
+                        <i class="bi bi-envelope-slash"></i>
+                    </button>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}

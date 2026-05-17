@@ -7,7 +7,7 @@
 <!-- Financial Summary -->
 {% if is_worker_view %}
 <div class="row g-3 mb-4">
-    <div class="col-md-3">
+    <div class="col-md-2">
         <div class="card bg-success bg-opacity-10">
             <div class="card-body py-3">
                 <small class="text-muted">Total Earned</small>
@@ -15,7 +15,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
         <div class="card bg-primary-subtle">
             <div class="card-body py-3">
                 <small class="text-muted">Total Paid</small>
@@ -23,7 +23,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
         <div class="card bg-warning bg-opacity-10">
             <div class="card-body py-3">
                 <small class="text-muted">Due to You</small>
@@ -31,11 +31,27 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
         <div class="card bg-info bg-opacity-10">
             <div class="card-body py-3">
                 <small class="text-muted">Active Jobs</small>
                 <h4 class="mb-0 text-info">{{ totals.active_jobs }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-danger bg-opacity-10">
+            <div class="card-body py-3">
+                <small class="text-muted">My Expenses</small>
+                <h4 class="mb-0 text-danger">${{ my_expenses|floatformat:2 }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card {% if net_position >= 0 %}bg-success bg-opacity-10{% else %}bg-danger bg-opacity-10{% endif %}">
+            <div class="card-body py-3">
+                <small class="text-muted">Net Position</small>
+                <h4 class="mb-0 {% if net_position >= 0 %}text-success{% else %}text-danger{% endif %}">${{ net_position|floatformat:2 }}</h4>
             </div>
         </div>
     </div>
@@ -47,14 +63,6 @@
             <div class="card-body py-3">
                 <small class="text-muted">Total Received</small>
                 <h4 class="mb-0 text-success">${{ totals.total_received|floatformat:2 }}</h4>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-2">
-        <div class="card">
-            <div class="card-body py-3">
-                <small class="text-muted">Connects</small>
-                <h4 class="mb-0 text-danger">${{ totals.total_connects|floatformat:2 }}</h4>
             </div>
         </div>
     </div>
@@ -87,6 +95,14 @@
             <div class="card-body py-3">
                 <small class="text-muted">Active Jobs</small>
                 <h4 class="mb-0 text-info">{{ totals.active_jobs }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card bg-danger bg-opacity-10">
+            <div class="card-body py-3">
+                <small class="text-muted">My Expenses</small>
+                <h4 class="mb-0 text-danger">${{ my_expenses|floatformat:2 }}</h4>
             </div>
         </div>
     </div>

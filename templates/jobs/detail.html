@@ -1,6 +1,11 @@
 {% extends "base.html" %}
+{% load core_filters %}
 {% block title %}{{ job.job_code }} - {{ job.title }}{% endblock %}
 {% block page_title %}{{ job.job_code }} - {{ job.title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -40,25 +45,19 @@
 
 <!-- Financial Summary Cards -->
 <div class="row g-3 mb-4">
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card"><div class="card-body">
             <small class="text-muted">Total Received</small>
             <h4 class="text-success">${{ totals.total_received|floatformat:2 }}</h4>
         </div></div>
     </div>
-    <div class="col-md-3">
-        <div class="card"><div class="card-body">
-            <small class="text-muted">Connect Deduction</small>
-            <h4 class="text-danger">${{ totals.connect_deduction|floatformat:2 }}</h4>
-        </div></div>
-    </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card"><div class="card-body">
             <small class="text-muted">Platform Fee</small>
             <h4 class="text-danger">${{ totals.platform_fee|floatformat:2 }}</h4>
         </div></div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card bg-primary-subtle"><div class="card-body">
             <small class="text-muted">Net Distributable</small>
             <h4 class="text-primary">${{ totals.net_distributable|floatformat:2 }}</h4>
@@ -68,42 +67,23 @@
 
 <!-- Info -->
 <div class="row g-3 mb-4">
-    <div class="col-md-6">
+    <div class="col-12">
         <div class="card">
             <div class="card-header"><h6 class="mb-0">Details</h6></div>
             <div class="card-body">
                 <dl class="row mb-0">
-                    <dt class="col-sm-5">Contract Value</dt>
-                    <dd class="col-sm-7">${{ job.contract_value|floatformat:2 }}</dd>
-                    <dt class="col-sm-5">Client</dt>
-                    <dd class="col-sm-7">{% if job.client %}<a href="{% url 'client_detail' job.client.pk %}">{{ job.client.name }}</a>{% else %}-{% endif %}</dd>
-                    <dt class="col-sm-5">Middleman</dt>
-                    <dd class="col-sm-7">{% if job.middleman %}<a href="{% url 'middleman_detail' job.middleman.pk %}">{{ job.middleman.name }}</a>{% else %}-{% endif %}</dd>
-                    <dt class="col-sm-5">Commission</dt>
-                    <dd class="col-sm-7">{{ job.commission_value }} ({{ job.get_commission_type_display }})</dd>
-                    <dt class="col-sm-5">Settings Version</dt>
-                    <dd class="col-sm-7">{% if job.settings_version %}<a href="{% url 'settings_detail' job.settings_version.pk %}">{{ job.settings_version.name }}</a>{% else %}-{% endif %}</dd>
-                    {% if job.connects_used %}
-                    <dt class="col-sm-5">Connects Used</dt>
-                    <dd class="col-sm-7">{{ job.connects_used }}</dd>
-                    {% endif %}
-                    <dt class="col-sm-5">Dates</dt>
-                    <dd class="col-sm-7">{{ job.start_date|date:"M d, Y"|default:"-" }} — {{ job.end_date|date:"M d, Y"|default:"ongoing" }}</dd>
-                </dl>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header"><h6 class="mb-0">Upwork IDs</h6></div>
-            <div class="card-body">
-                <dl class="row mb-0">
-                    <dt class="col-sm-5">Job ID</dt>
-                    <dd class="col-sm-7">{{ job.upwork_job_id|default:"-" }}</dd>
-                    <dt class="col-sm-5">Contract ID</dt>
-                    <dd class="col-sm-7">{{ job.upwork_contract_id|default:"-" }}</dd>
-                    <dt class="col-sm-5">Offer ID</dt>
-                    <dd class="col-sm-7">{{ job.upwork_offer_id|default:"-" }}</dd>
+                    <dt class="col-sm-3">Contract Value</dt>
+                    <dd class="col-sm-3">${{ job.contract_value|floatformat:2 }}</dd>
+                    <dt class="col-sm-3">Commission</dt>
+                    <dd class="col-sm-3">{{ job.commission_value }} ({{ job.get_commission_type_display }})</dd>
+                    <dt class="col-sm-3">Client</dt>
+                    <dd class="col-sm-3">{% if job.client %}<a href="{% url 'client_detail' job.client.pk %}">{{ job.client.name }}</a>{% else %}-{% endif %}</dd>
+                    <dt class="col-sm-3">Middleman</dt>
+                    <dd class="col-sm-3">{% if job.middleman %}<a href="{% url 'middleman_detail' job.middleman.pk %}">{{ job.middleman.name }}</a>{% else %}-{% endif %}</dd>
+                    <dt class="col-sm-3">Settings Version</dt>
+                    <dd class="col-sm-3">{% if job.settings_version %}<a href="{% url 'settings_detail' job.settings_version.pk %}">{{ job.settings_version.name }}</a>{% else %}-{% endif %}</dd>
+                    <dt class="col-sm-3">Dates</dt>
+                    <dd class="col-sm-3">{{ job.start_date|date:"M d, Y"|default:"-" }} — {{ job.end_date|date:"M d, Y"|default:"ongoing" }}</dd>
                 </dl>
             </div>
         </div>
@@ -116,6 +96,34 @@
     <div class="card-body">{{ job.description|linebreaksbr }}</div>
 </div>
 {% endif %}
+
+<!-- Personal Notes -->
+<div class="card mb-4" id="notesCard">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="bi bi-journal-text"></i> My Notes <small class="text-muted">(private — only you can see this)</small></h6>
+        <div>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="notesEditBtn"><i class="bi bi-pencil"></i> Edit</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="notesCancelBtn">Cancel</button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div id="notesView" class="markdown-body">
+            {% if note.body %}
+                {{ note.body|markdown }}
+                <small class="text-muted d-block mt-2">Last updated {{ note.updated_at|date:"M d, Y H:i" }}</small>
+            {% else %}
+                <em class="text-muted">No notes yet. Click Edit to add some.</em>
+            {% endif %}
+        </div>
+        <form method="POST" action="{% url 'job_note_save' job.pk %}" id="notesForm" class="d-none">
+            {% csrf_token %}
+            <textarea name="body" id="notesEditor">{{ note.body|default:'' }}</textarea>
+            <div class="d-flex gap-2 mt-2">
+                <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-save"></i> Save</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <!-- Receipts -->
 <div class="card mb-4">
@@ -228,4 +236,60 @@
         </table>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+<script>
+(function() {
+    var view = document.getElementById('notesView');
+    var form = document.getElementById('notesForm');
+    var editBtn = document.getElementById('notesEditBtn');
+    var cancelBtn = document.getElementById('notesCancelBtn');
+    var textarea = document.getElementById('notesEditor');
+    var mde = null;
+
+    function enterEdit() {
+        view.classList.add('d-none');
+        form.classList.remove('d-none');
+        editBtn.classList.add('d-none');
+        cancelBtn.classList.remove('d-none');
+        if (!mde) {
+            mde = new EasyMDE({
+                element: textarea,
+                spellChecker: false,
+                status: false,
+                minHeight: '200px',
+                autosave: { enabled: true, uniqueId: 'jobnote-{{ job.pk }}', delay: 1500 },
+                toolbar: ['bold', 'italic', 'strikethrough', '|',
+                          'heading-1', 'heading-2', 'heading-3', '|',
+                          'unordered-list', 'ordered-list', 'quote', 'code', '|',
+                          'link', 'table', 'horizontal-rule', '|',
+                          'preview', 'side-by-side', 'fullscreen', '|', 'guide'],
+            });
+        }
+    }
+
+    function exitEdit() {
+        if (mde) { mde.toTextArea(); mde = null; }
+        form.classList.add('d-none');
+        view.classList.remove('d-none');
+        editBtn.classList.remove('d-none');
+        cancelBtn.classList.add('d-none');
+    }
+
+    editBtn.addEventListener('click', enterEdit);
+    cancelBtn.addEventListener('click', exitEdit);
+})();
+</script>
+<style>
+.markdown-body h1, .markdown-body h2, .markdown-body h3,
+.markdown-body h4, .markdown-body h5, .markdown-body h6 { margin-top: 0.75rem; }
+.markdown-body code { background: rgba(127,127,127,0.15); padding: 1px 4px; border-radius: 3px; }
+.markdown-body pre { background: rgba(127,127,127,0.1); padding: 0.75rem; border-radius: 4px; overflow-x: auto; }
+.markdown-body pre code { background: transparent; padding: 0; }
+.markdown-body blockquote { border-left: 3px solid var(--bs-border-color); padding-left: 0.75rem; color: var(--bs-secondary-color); }
+.markdown-body table { border-collapse: collapse; }
+.markdown-body table th, .markdown-body table td { border: 1px solid var(--bs-border-color); padding: 0.25rem 0.5rem; }
+</style>
 {% endblock %}

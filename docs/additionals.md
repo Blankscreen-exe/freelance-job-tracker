@@ -32,4 +32,4 @@
 - **DONE** why does the admi show active role = worker
 - **DONE** only admin should be able to see or manage "settings page" 
 
-- in some places we are using primary color for both bg and text in the dark theme, i saw this in a button, we need to fix that aesthetically and identify what other blunders like these are present
+- **DONE** in some places we are using primary color for both bg and text in the dark theme, i saw this in a button, we need to fix that aesthetically and identify what other blunders like these are present

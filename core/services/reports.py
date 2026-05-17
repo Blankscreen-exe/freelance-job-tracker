@@ -35,8 +35,7 @@ def get_pnl_data(user, date_from, date_to, visible_jobs):
     ).aggregate(total=Sum('amount_received'))['total'] or Decimal(0)
     revenue = quantize_decimal(revenue)
 
-    # Connect deductions and platform fees — proportional to period receipts
-    connect_deductions = Decimal(0)
+    # Platform fees — proportional to period receipts
     platform_fees = Decimal(0)
 
     jobs_with_receipts = visible_jobs.filter(
@@ -60,12 +59,10 @@ def get_pnl_data(user, date_from, date_to, visible_jobs):
 
         if total_job_receipts > 0:
             ratio = Decimal(str(period_receipts)) / Decimal(str(total_job_receipts))
-            connect_deductions += job_totals['connect_deduction'] * ratio
             platform_fees += job_totals['platform_fee'] * ratio
 
-    connect_deductions = quantize_decimal(connect_deductions)
     platform_fees = quantize_decimal(platform_fees)
-    gross_profit = quantize_decimal(revenue - connect_deductions - platform_fees)
+    gross_profit = quantize_decimal(revenue - platform_fees)
 
     # Worker payouts (paid) in period for visible jobs
     worker_payouts = Payment.objects.filter(
@@ -84,12 +81,10 @@ def get_pnl_data(user, date_from, date_to, visible_jobs):
         expense_qs = Expense.objects.filter(
             expense_date__gte=date_from,
             expense_date__lte=date_to,
-        ).values('category').annotate(total=Sum('amount')).order_by('category')
-
-        category_labels = dict(Expense.Category.choices)
+        ).values('category__name').annotate(total=Sum('amount')).order_by('category__name')
 
         for row in expense_qs:
-            label = category_labels.get(row['category'], row['category'])
+            label = row['category__name'] or 'Uncategorised'
             amount = quantize_decimal(row['total'] or 0)
             expenses_by_category[label] = amount
             total_expenses += amount
@@ -111,7 +106,6 @@ def get_pnl_data(user, date_from, date_to, visible_jobs):
         'date_from': date_from,
         'date_to': date_to,
         'revenue': revenue,
-        'connect_deductions': connect_deductions,
         'platform_fees': platform_fees,
         'gross_profit': gross_profit,
         'worker_payouts': worker_payouts,
@@ -177,7 +171,7 @@ def get_ledger_entries(user, date_from, date_to, visible_jobs, entry_type=None):
             entries.append({
                 'date': e.expense_date,
                 'type': 'expense',
-                'description': f'{e.get_category_display()}: {e.description}',
+                'description': f'{e.category.name + ": " if e.category else ""}{e.description}',
                 'amount': -e.amount,
                 'reference': e.reference or '',
                 'job_code': '',
@@ -195,7 +189,6 @@ def pnl_to_csv_rows(pnl_data):
         [],
         ['Line Item', 'Amount'],
         ['Revenue', str(pnl_data['revenue'])],
-        ['Connect Deductions', str(-pnl_data['connect_deductions'])],
         ['Platform Fees', str(-pnl_data['platform_fees'])],
         ['Gross Profit', str(pnl_data['gross_profit'])],
         [],

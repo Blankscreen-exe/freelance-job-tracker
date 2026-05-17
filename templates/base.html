@@ -49,6 +49,9 @@
         .sidebar .nav-link { padding: 0.6rem 1rem; }
         .sidebar .nav-link i { width: 1.5rem; }
         .sidebar .nav-divider { margin: 0.5rem 0; }
+        .sidebar .sub-nav .nav-link { padding: 0.35rem 0.75rem; font-size: 0.875em; }
+        .sidebar .nav-link .chevron { transition: transform 0.2s; }
+        .sidebar .nav-link[aria-expanded="true"] .chevron { transform: rotate(180deg); }
         .content-area { min-height: 100vh; }
 
         /* Dark theme sidebar */
@@ -177,15 +180,30 @@
                     </a>
                 </li>
 
-                {% if user.is_superuser or user.active_role == 'admin' or user.active_role == 'middleman' %}
                 <li><div class="nav-divider"></div></li>
 
                 <li class="nav-item">
-                    <a class="nav-link {% if '/expenses' in request.path %}active{% endif %}" href="/expenses/">
-                        <i class="bi bi-receipt"></i> Expenses
+                    <a class="nav-link d-flex justify-content-between align-items-center {% if '/expenses' in request.path %}active{% endif %}"
+                       href="#expensesSubmenu" data-bs-toggle="collapse" role="button"
+                       aria-expanded="{% if '/expenses' in request.path %}true{% else %}false{% endif %}">
+                        <span><i class="bi bi-receipt"></i> Expenses</span>
+                        <i class="bi bi-chevron-down small chevron"></i>
                     </a>
+                    <div class="collapse {% if '/expenses' in request.path %}show{% endif %}" id="expensesSubmenu">
+                        <ul class="nav flex-column ms-3 sub-nav">
+                            <li class="nav-item">
+                                <a class="nav-link {% if '/expenses' in request.path and '/expenses/tracking' not in request.path %}active{% endif %}" href="/expenses/">
+                                    <i class="bi bi-list-ul"></i> Expense Records
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if '/expenses/tracking' in request.path %}active{% endif %}" href="/expenses/tracking/">
+                                    <i class="bi bi-graph-up"></i> Expense Tracking
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </li>
-                {% endif %}
 
                 {% if user.active_role != 'worker' or user.is_superuser %}
                 <li><div class="nav-divider"></div></li>
@@ -205,9 +223,31 @@
                 <li><div class="nav-divider"></div></li>
 
                 <li class="nav-item">
-                    <a class="nav-link {% if '/settings' in request.path %}active{% endif %}" href="/settings/">
-                        <i class="bi bi-gear"></i> Settings
+                    <a class="nav-link d-flex justify-content-between align-items-center {% if '/settings' in request.path %}active{% endif %}"
+                       href="#settingsSubmenu" data-bs-toggle="collapse" role="button"
+                       aria-expanded="{% if '/settings' in request.path %}true{% else %}false{% endif %}">
+                        <span><i class="bi bi-gear"></i> Settings</span>
+                        <i class="bi bi-chevron-down small chevron"></i>
                     </a>
+                    <div class="collapse {% if '/settings' in request.path %}show{% endif %}" id="settingsSubmenu">
+                        <ul class="nav flex-column ms-3 sub-nav">
+                            <li class="nav-item">
+                                <a class="nav-link {% if '/settings' in request.path and '/settings/branding' not in request.path and '/settings/smtp' not in request.path %}active{% endif %}" href="/settings/">
+                                    <i class="bi bi-sliders"></i> Versions
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if '/settings/branding' in request.path %}active{% endif %}" href="{% url 'branding_settings' %}">
+                                    <i class="bi bi-palette"></i> Branding
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if '/settings/smtp' in request.path %}active{% endif %}" href="{% url 'smtp_settings' %}">
+                                    <i class="bi bi-envelope-at"></i> SMTP
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </li>
                 {% endif %}
                 {% if user.is_superuser %}

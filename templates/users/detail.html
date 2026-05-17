@@ -8,6 +8,56 @@
     <a href="{% url 'user_list' %}" class="btn btn-sm btn-secondary"><i class="bi bi-arrow-left"></i> Back</a>
 </div>
 
+{% if not is_self %}
+<div class="card border-danger mb-4">
+    <div class="card-header bg-danger-subtle">
+        <h6 class="mb-0 text-danger"><i class="bi bi-exclamation-octagon"></i> Danger Zone</h6>
+    </div>
+    <div class="card-body">
+        <div class="d-flex flex-column gap-3">
+            {% if worker %}
+            <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                <div>
+                    <strong>Delete worker profile</strong>
+                    <div class="text-muted small">Archives <code>{{ worker.worker_code }} — {{ worker.name }}</code>, removes the worker role from this user, and unlinks the profile. Payment history is preserved.</div>
+                </div>
+                <form method="POST" action="{% url 'user_delete_worker_profile' user_obj.pk %}" onsubmit="return confirm('Archive and unlink the worker profile for {{ user_obj.username|escapejs }}?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Delete Worker Profile</button>
+                </form>
+            </div>
+            {% endif %}
+            {% if middleman %}
+            <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                <div>
+                    <strong>Delete middleman profile</strong>
+                    <div class="text-muted small">Archives <code>{{ middleman.middleman_code }} — {{ middleman.name }}</code>, removes the middleman role, and unlinks the profile.</div>
+                </div>
+                <form method="POST" action="{% url 'user_delete_middleman_profile' user_obj.pk %}" onsubmit="return confirm('Archive and unlink the middleman profile for {{ user_obj.username|escapejs }}?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Delete Middleman Profile</button>
+                </form>
+            </div>
+            {% endif %}
+            <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                <div>
+                    <strong>Delete user account</strong>
+                    <div class="text-muted small">Removes the login entirely. Linked worker/middleman profiles are archived but preserved (financial history kept). Cannot be undone.</div>
+                </div>
+                <form method="POST" action="{% url 'user_delete' user_obj.pk %}" onsubmit="return confirm('Permanently delete user {{ user_obj.username|escapejs }}? Their worker/middleman profiles will be archived.');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i> Delete User</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> This is your own account. Use the <a href="{% url 'profile' %}">profile page</a> to delete it (or have another admin do it).
+</div>
+{% endif %}
+
 <div class="row g-4">
     <div class="col-md-6">
         <div class="card">

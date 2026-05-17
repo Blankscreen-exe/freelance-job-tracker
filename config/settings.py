@@ -108,6 +108,14 @@ if os.environ.get('AWS_S3_ENDPOINT_URL'):
 
 APP_NAME = os.environ.get('APP_NAME', 'Job Tracker')
 
+# Field-level encryption key (Fernet, 32-byte URL-safe base64).
+# Set FIELD_ENCRYPTION_KEY in the environment for production.
+# Falls back to a key derived from SECRET_KEY (dev convenience only).
+import hashlib, base64 as _b64
+FIELD_ENCRYPTION_KEY = os.environ.get('FIELD_ENCRYPTION_KEY') or _b64.urlsafe_b64encode(
+    hashlib.sha256(SECRET_KEY.encode()).digest()
+).decode()
+
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'

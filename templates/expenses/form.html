@@ -24,14 +24,20 @@
                 <div class="col-md-6">
                     <label class="form-label">Category</label>
                     <select name="category" class="form-select">
-                        {% for val, label in categories %}
-                        <option value="{{ val }}" {% if expense.category == val %}selected{% endif %}>{{ label }}</option>
+                        <option value="">— None —</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.pk }}" {% if expense.category_id == cat.pk %}selected{% endif %}>{{ cat.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Vendor</label>
-                    <input type="text" name="vendor" class="form-control" value="{{ expense.vendor|default:'' }}">
+                    <select name="vendor" class="form-select">
+                        <option value="">— None —</option>
+                        {% for v in vendors %}
+                        <option value="{{ v.pk }}" {% if expense.vendor_id == v.pk %}selected{% endif %}>{{ v.name }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
                 <div class="col-12">
                     <label class="form-label">Description <span class="text-danger">*</span></label>
@@ -47,6 +53,18 @@
                     <label class="form-label">Notes</label>
                     <textarea name="notes" class="form-control" rows="2">{{ expense.notes|default:'' }}</textarea>
                 </div>
+            </div>
+                {% if all_users %}
+                <div class="col-md-6">
+                    <label class="form-label">Submitted By <small class="text-muted">(admin override)</small></label>
+                    <select name="created_by" class="form-select">
+                        <option value="">— Myself ({{ request.user.username }}) —</option>
+                        {% for u in all_users %}
+                        <option value="{{ u.pk }}" {% if expense.created_by_id == u.pk %}selected{% endif %}>{{ u.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
             </div>
             <div class="d-flex gap-2 mt-3">
                 <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> {% if expense %}Update{% else %}Record{% endif %}</button>

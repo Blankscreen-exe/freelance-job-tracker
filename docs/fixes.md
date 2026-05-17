@@ -1,0 +1,4 @@
+- **DONE** when creating a job we have an input area for upwork job url, contract id, offer id etc etc. we need to generalize that.it could be a job on freelancer, by a referral which does not have a url, maybe a company's job post url without the contract and offer ids. i hthink it is better to just cut off the ids and keep the URL
+- i need a deploy script which willl pull, run docker compose up, run migrations and do other things to make sure the deployment was successfull
+- **DONE** i think Connect Deduction should not be attached to a job. we alreadyt have a separate business expenses section where we can record the connects or other expenses.
+- **DONE** i need to wrote personal notes for the jobs. should be able to do markdown formatting
