@@ -70,7 +70,7 @@ def get_pnl_data(user, date_from, date_to, visible_jobs):
         is_paid=True,
         paid_date__gte=date_from,
         paid_date__lte=date_to,
-    ).aggregate(total=Sum('amount_paid'))['total'] or Decimal(0)
+    ).aggregate(total=Sum('amount'))['total'] or Decimal(0)
     worker_payouts = quantize_decimal(worker_payouts)
 
     # Expenses — admin only
@@ -156,7 +156,7 @@ def get_ledger_entries(user, date_from, date_to, visible_jobs, entry_type=None):
                 'date': p.paid_date,
                 'type': 'payment',
                 'description': f'Payment to {p.worker.name}' if p.worker else 'Worker payment',
-                'amount': -p.amount_paid,
+                'amount': -p.amount,
                 'reference': p.reference or '',
                 'job_code': p.job.job_code if p.job else '',
             })

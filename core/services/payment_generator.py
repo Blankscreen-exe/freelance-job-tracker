@@ -36,7 +36,7 @@ def generate_payments_from_receipt(receipt):
             payment_code=_next_payment_code(),
             worker=dist.worker,
             job=receipt.job,
-            amount_paid=dist.computed_amount,
+            amount=dist.computed_amount,
             paid_date=receipt.received_date,
             method='Auto-generated',
             reference=f'Receipt #{receipt.id}',

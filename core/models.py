@@ -370,7 +370,7 @@ class Payment(models.Model):
     payment_code = models.CharField(max_length=20, unique=True)  # P0001, P0002
     worker = models.ForeignKey(Worker, on_delete=models.CASCADE, related_name='payments')
     job = models.ForeignKey(Job, on_delete=models.SET_NULL, null=True, blank=True, related_name='payments')
-    amount_paid = models.DecimalField(max_digits=12, decimal_places=2)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
     paid_date = models.DateField()
     method = models.CharField(max_length=100, blank=True, default='')
     reference = models.CharField(max_length=200, blank=True, default='')
@@ -383,7 +383,7 @@ class Payment(models.Model):
         ordering = ['-paid_date']
 
     def __str__(self):
-        return f"{self.payment_code} - {self.amount_paid} to {self.worker}"
+        return f"{self.payment_code} - {self.amount} to {self.worker}"
 
 
 # ──────────────────────────────────────────────
@@ -477,6 +477,7 @@ class Expense(models.Model):
     vendor = models.ForeignKey('Vendor', on_delete=models.SET_NULL, null=True, blank=True, related_name='expenses')
     reference = models.CharField(max_length=200, blank=True, default='')  # receipt/invoice number
     notes = models.TextField(blank=True, default='')
+    is_paid = models.BooleanField(default=False)  # funded by submitter's received earnings
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_expenses')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -80,7 +80,7 @@
                 <tr>
                     <td>{{ p.payment_code }}</td>
                     <td>{% if p.job %}<a href="{% url 'job_detail' p.job.pk %}">{{ p.job.job_code }}</a>{% else %}-{% endif %}</td>
-                    <td>${{ p.amount_paid|floatformat:2 }}</td>
+                    <td>${{ p.amount|floatformat:2 }}</td>
                     <td>{{ p.paid_date|date:"M d, Y" }}</td>
                     <td>{{ p.method|default:"-" }}</td>
                 </tr>

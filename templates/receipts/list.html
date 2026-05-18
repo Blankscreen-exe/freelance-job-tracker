@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Client Receipts{% endblock %}
+{% block page_title %}Client Receipts{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Client Receipts <span class="badge bg-success">${{ total|floatformat:2 }}</span></h2>
+    <div class="d-flex gap-2 align-items-center">
+        <select id="newReceiptJobSelect" class="form-select form-select-sm" style="width:220px;">
+            <option value="">Select job…</option>
+            {% for j in jobs %}
+            <option value="{{ j.pk }}">{{ j.job_code }} — {{ j.title|truncatewords:4 }}</option>
+            {% endfor %}
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="goToNewReceipt()">
+            <i class="bi bi-plus-circle"></i> New Receipt
+        </button>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small">Job</label>
+                <select name="job" class="form-select form-select-sm">
+                    <option value="">All Jobs</option>
+                    {% for j in jobs %}
+                    <option value="{{ j.pk }}" {% if filters.job == j.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ j.job_code }} — {{ j.title|truncatewords:4 }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Source</label>
+                <select name="source" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    {% for val, label in sources %}
+                    <option value="{{ val }}" {% if filters.source == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">From</label>
+                <input type="date" name="date_from" class="form-control form-control-sm" value="{{ filters.date_from|default:'' }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">To</label>
+                <input type="date" name="date_to" class="form-control form-control-sm" value="{{ filters.date_to|default:'' }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-sm btn-primary w-100">Filter</button>
+            </div>
+            {% if filters.job or filters.source or filters.date_from or filters.date_to %}
+            <div class="col-md-1">
+                <a href="{% url 'receipt_list' %}" class="btn btn-sm btn-outline-secondary w-100">Clear</a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Job</th>
+                <th>Date</th>
+                <th>Amount</th>
+                <th>Source</th>
+                <th>Tx ID</th>
+                <th>Distributions</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in receipts %}
+            <tr>
+                <td class="text-muted small">R{{ r.pk }}</td>
+                <td><a href="{% url 'job_detail' r.job.pk %}">{{ r.job.job_code }}</a>
+                    <span class="text-muted small ms-1">{{ r.job.title|truncatewords:4 }}</span></td>
+                <td>{{ r.received_date|date:"M d, Y" }}</td>
+                <td><strong class="text-success">${{ r.amount_received|floatformat:2 }}</strong></td>
+                <td><span class="badge bg-secondary">{{ r.get_source_display }}</span></td>
+                <td><span class="text-muted small">{{ r.upwork_transaction_id|default:"—" }}</span></td>
+                <td>
+                    {% if r.dist_count %}
+                    <span class="badge bg-primary">{{ r.dist_count }} split{{ r.dist_count|pluralize }}</span>
+                    {% else %}
+                    <span class="text-muted small">None</span>
+                    {% endif %}
+                </td>
+                <td class="d-flex gap-1">
+                    <a href="{% url 'receipt_edit' r.pk %}" class="btn btn-sm btn-outline-secondary" title="Edit">
+                        <i class="bi bi-pencil"></i>
+                    </a>
+                    <form method="POST" action="{% url 'receipt_delete' r.pk %}"
+                          onsubmit="return confirm('Delete receipt R{{ r.pk }} (${{ r.amount_received }})? This also removes all distributions and auto-generated payments.')">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{% url 'receipt_list' %}">
+                        <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" class="text-center text-muted py-4">
+                No receipts found. Select a job above and click <strong>New Receipt</strong> to record a client payment.
+            </td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+function goToNewReceipt() {
+    var jobId = document.getElementById('newReceiptJobSelect').value;
+    if (!jobId) { alert('Select a job first.'); return; }
+    window.location.href = '/jobs/' + jobId + '/receipts/new/';
+}
+</script>
+{% endblock %}

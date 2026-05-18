@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Expenses <span class="badge bg-danger">${{ total|floatformat:2 }}</span></h2>
+    <h2>Global Expenses <span class="badge {% if total_covered %}bg-success{% else %}bg-danger{% endif %}">${{ total|floatformat:2 }}</span></h2>
     <div class="d-flex gap-2">
         <a href="{% url 'expense_tracking' %}" class="btn btn-outline-info"><i class="bi bi-graph-up"></i> Tracking</a>
         <a href="{% url 'expense_create' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> New Expense</a>
@@ -79,7 +79,16 @@
                 <td>{{ e.expense_date|date:"M d, Y" }}</td>
                 <td>{{ e.description|truncatewords:8 }}</td>
                 <td><span class="badge bg-secondary">{{ e.category.name|default:"—" }}</span></td>
-                <td>${{ e.amount|floatformat:2 }}</td>
+                <td>
+                    ${{ e.amount|floatformat:2 }}
+                    {% if e.is_paid %}
+                    <i class="bi bi-check-circle-fill text-success ms-1" style="font-size:.8rem;"
+                       data-bs-toggle="tooltip" title="Covered by agency earnings"></i>
+                    {% else %}
+                    <i class="bi bi-exclamation-circle-fill text-warning ms-1" style="font-size:.8rem;"
+                       data-bs-toggle="tooltip" title="Not yet covered by agency earnings"></i>
+                    {% endif %}
+                </td>
                 <td>{{ e.vendor.name|default:"-" }}</td>
                 <td>
                     {% if e.created_by %}
@@ -105,4 +114,10 @@
         </tbody>
     </table>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+</script>
 {% endblock %}

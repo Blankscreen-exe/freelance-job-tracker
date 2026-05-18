@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, Count
 from django.http import HttpResponseBadRequest
 
 from .models import (
@@ -17,6 +17,7 @@ from .models import (
 from .services.calculations import (
     get_job_totals, compute_allocations, compute_worker_totals,
     get_dashboard_totals, get_receipt_deductions, compute_receipt_distributions,
+    recompute_expense_coverage,
 )
 from .services.payment_generator import generate_payments_from_receipt
 from .services.reports import get_pnl_data, get_ledger_entries, pnl_to_csv_rows, ledger_to_csv_rows
@@ -736,7 +737,7 @@ def payment_create(request):
         payment = Payment(
             payment_code=_next_code(Payment, 'P', pad=4),
             worker_id=request.POST['worker'],
-            amount_paid=request.POST['amount_paid'],
+            amount=request.POST['amount_paid'],
             paid_date=request.POST['paid_date'],
             method=request.POST.get('method', ''),
             reference=request.POST.get('reference', ''),
@@ -763,10 +764,10 @@ def payment_edit(request, pk):
     payment = get_object_or_404(Payment, pk=pk)
     if request.method == 'POST':
         payment.worker_id = request.POST['worker']
-        payment.amount_paid = request.POST['amount_paid']
+        payment.amount = request.POST['amount_paid']
         payment.paid_date = request.POST['paid_date']
         payment.method = request.POST.get('method', '')
-        payment.reference = request.POST.get('reference', '')
+
         payment.notes = request.POST.get('notes', '')
         job_id = request.POST.get('job')
         payment.job_id = job_id if job_id else None
@@ -787,7 +788,11 @@ def payment_edit(request, pk):
 def payment_delete(request, pk):
     payment = get_object_or_404(Payment, pk=pk)
     if request.method == 'POST':
+        worker = payment.worker
+        was_paid = payment.is_paid
         payment.delete()
+        if was_paid:
+            recompute_expense_coverage(worker)
         messages.success(request, "Payment deleted.")
     return redirect('payment_list')
 
@@ -798,6 +803,7 @@ def payment_mark_paid(request, pk):
         payment = get_object_or_404(Payment, pk=pk)
         payment.is_paid = True
         payment.save()
+        recompute_expense_coverage(payment.worker)
         messages.success(request, f"Payment {payment.payment_code} marked as paid.")
     return redirect(request.POST.get('next', 'payment_list'))
 
@@ -808,6 +814,7 @@ def payment_mark_unpaid(request, pk):
         payment = get_object_or_404(Payment, pk=pk)
         payment.is_paid = False
         payment.save()
+        recompute_expense_coverage(payment.worker)
         messages.success(request, f"Payment {payment.payment_code} marked as unpaid.")
     return redirect(request.POST.get('next', 'payment_list'))
 
@@ -984,8 +991,49 @@ def smtp_test(request):
 
 
 # ──────────────────────────────────────────────
-# Receipts (nested under jobs)
+# Receipts
 # ──────────────────────────────────────────────
+
+@login_required
+def receipt_list(request):
+    if not request.user.is_admin_user() and request.user.active_role not in ('admin', 'middleman'):
+        messages.error(request, "Access restricted.")
+        return redirect('dashboard')
+
+    receipts = Receipt.objects.select_related('job').annotate(
+        dist_count=Count('distributions', distinct=True),
+    ).order_by('-received_date')
+
+    if not request.user.is_admin_user():
+        receipts = receipts.filter(job__in=get_visible_jobs(request.user))
+
+    job_id    = request.GET.get('job')
+    source    = request.GET.get('source')
+    date_from = request.GET.get('date_from')
+    date_to   = request.GET.get('date_to')
+
+    if job_id:
+        receipts = receipts.filter(job_id=job_id)
+    if source:
+        receipts = receipts.filter(source=source)
+    if date_from:
+        receipts = receipts.filter(received_date__gte=date_from)
+    if date_to:
+        receipts = receipts.filter(received_date__lte=date_to)
+
+    total = receipts.aggregate(s=Sum('amount_received'))['s'] or Decimal('0.00')
+
+    jobs = Job.objects.exclude(status='archived') if request.user.is_admin_user() \
+        else get_visible_jobs(request.user).exclude(status='archived')
+
+    return render(request, 'receipts/list.html', {
+        'receipts': receipts,
+        'total': total,
+        'jobs': jobs,
+        'sources': Receipt.Source.choices,
+        'filters': {'job': job_id, 'source': source, 'date_from': date_from, 'date_to': date_to},
+    })
+
 
 @login_required
 def receipt_create(request, job_pk):
@@ -1002,7 +1050,6 @@ def receipt_create(request, job_pk):
             received_date=request.POST['received_date'],
             amount_received=request.POST['amount_received'],
             source=request.POST.get('source', 'milestone'),
-            upwork_transaction_id=request.POST.get('upwork_transaction_id', ''),
             notes=request.POST.get('notes', ''),
         )
         receipt.save()
@@ -1086,7 +1133,6 @@ def receipt_edit(request, pk):
         receipt.received_date = request.POST['received_date']
         receipt.amount_received = request.POST['amount_received']
         receipt.source = request.POST.get('source', receipt.source)
-        receipt.upwork_transaction_id = request.POST.get('upwork_transaction_id', '')
         receipt.notes = request.POST.get('notes', '')
         receipt.save()
 
@@ -1155,6 +1201,9 @@ def receipt_delete(request, pk):
         ).delete()
         receipt.delete()  # CASCADE deletes distributions
         messages.success(request, "Receipt deleted.")
+        next_url = request.POST.get('next') or request.GET.get('next')
+        return redirect(next_url if next_url else 'job_detail', pk=job.pk) if not next_url \
+            else redirect(next_url)
     return redirect('job_detail', pk=job.pk)
 
 
@@ -1675,11 +1724,14 @@ def expense_list(request):
         expenses = expenses.filter(expense_date__lte=date_to)
 
     total = expenses.aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
+    total_covered = not expenses.filter(is_paid=False).exists()
     vendors = Vendor.objects.filter(is_archived=False)
     all_users = User.objects.filter(is_active=True).order_by('username') if request.user.is_admin_user() else None
+
     return render(request, 'expenses/list.html', {
         'expenses': expenses,
         'total': total,
+        'total_covered': total_covered,
         'categories': ExpenseCategory.objects.filter(is_archived=False),
         'vendors': vendors,
         'all_users': all_users,
@@ -1742,8 +1794,8 @@ def expense_edit(request, pk):
         expense.category_id = request.POST.get('category') or None
         expense.description = request.POST['description']
         expense.vendor_id = request.POST.get('vendor') or None
-        expense.reference = request.POST.get('reference', '')
         expense.notes = request.POST.get('notes', '')
+        expense.is_paid = 'is_paid' in request.POST
         if request.user.is_admin_user():
             owner_id = request.POST.get('created_by') or None
             if owner_id:
@@ -1775,31 +1827,74 @@ def expense_delete(request, pk):
 
 @login_required
 def expense_tracking(request):
-    from datetime import date, timedelta
+    from datetime import date, timedelta as td
     from .services.calculations import get_owner_earnings_for_period
 
     date_to = date.today()
-    date_from = date_to - timedelta(days=30)
+    date_from = date_to - td(days=30)
     if request.GET.get('date_from'):
         date_from = date.fromisoformat(request.GET['date_from'])
     if request.GET.get('date_to'):
         date_to = date.fromisoformat(request.GET['date_to'])
 
+    is_worker = not request.user.is_admin_user() and request.user.active_role == 'worker'
+
+    chart_labels = []
+    chart_expenses = []
+    chart_earnings = []
+
+    if is_worker:
+        # Personal view: expenses the worker submitted + their ReceiptDistribution earnings
+        worker_profile = getattr(request.user, 'worker_profile', None)
+
+        my_expenses = Expense.objects.filter(
+            created_by=request.user,
+            expense_date__gte=date_from, expense_date__lte=date_to,
+        ).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
+
+        my_earnings = Payment.objects.filter(
+            worker=worker_profile,
+            paid_date__gte=date_from,
+            paid_date__lte=date_to,
+        ).aggregate(s=Sum('amount'))['s'] or Decimal('0.00') if worker_profile else Decimal('0.00')
+
+        net = my_earnings - my_expenses
+
+        current = date_from
+        while current <= date_to:
+            chart_labels.append(current.strftime('%b %d'))
+            day_exp = Expense.objects.filter(
+                created_by=request.user, expense_date=current,
+            ).aggregate(s=Sum('amount'))['s'] or 0
+            day_earn = Payment.objects.filter(
+                worker=worker_profile, paid_date=current,
+            ).aggregate(s=Sum('amount'))['s'] or 0 if worker_profile else 0
+            chart_expenses.append(float(day_exp))
+            chart_earnings.append(float(day_earn))
+            current += td(days=1)
+
+        return render(request, 'expenses/tracking.html', {
+            'date_from': date_from, 'date_to': date_to,
+            'is_personal': True,
+            'my_expenses': my_expenses,
+            'my_earnings': my_earnings,
+            'net': net,
+            'chart_labels': json.dumps(chart_labels),
+            'chart_expenses': json.dumps(chart_expenses),
+            'chart_earnings': json.dumps(chart_earnings),
+        })
+
+    # Admin / middleman: agency-wide view
     total_expenses = Expense.objects.filter(
-        expense_date__gte=date_from, expense_date__lte=date_to
+        expense_date__gte=date_from, expense_date__lte=date_to,
     ).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
     total_earnings = Receipt.objects.filter(
-        received_date__gte=date_from, received_date__lte=date_to
+        received_date__gte=date_from, received_date__lte=date_to,
     ).aggregate(s=Sum('amount_received'))['s'] or Decimal('0.00')
     owner_earnings = get_owner_earnings_for_period(date_from, date_to)
     profit = owner_earnings - total_expenses
     margin = (profit / owner_earnings * 100) if owner_earnings > 0 else Decimal(0)
 
-    # Chart data — daily breakdown
-    from datetime import timedelta as td
-    chart_labels = []
-    chart_expenses = []
-    chart_earnings = []
     current = date_from
     while current <= date_to:
         chart_labels.append(current.strftime('%b %d'))
@@ -1811,6 +1906,7 @@ def expense_tracking(request):
 
     return render(request, 'expenses/tracking.html', {
         'date_from': date_from, 'date_to': date_to,
+        'is_personal': False,
         'total_expenses': total_expenses, 'total_earnings': total_earnings,
         'owner_earnings': owner_earnings, 'profit': profit, 'margin': margin,
         'chart_labels': json.dumps(chart_labels),

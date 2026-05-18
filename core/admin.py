@@ -114,7 +114,7 @@ class JobAllocationAdmin(admin.ModelAdmin):
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
-    list_display = ('payment_code', 'worker', 'job', 'amount_paid', 'paid_date', 'is_paid', 'is_auto_generated')
+    list_display = ('payment_code', 'worker', 'job', 'amount', 'paid_date', 'is_paid', 'is_auto_generated')
     list_filter = ('paid_date', 'is_paid', 'is_auto_generated')
     search_fields = ('payment_code',)
 

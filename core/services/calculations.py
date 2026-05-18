@@ -10,7 +10,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from django.db.models import Sum, Q
 from core.models import (
     Job, Receipt, JobAllocation, Payment, SettingsVersion,
-    Worker, ReceiptDistribution, JobCalculationSnapshot,
+    Worker, ReceiptDistribution, JobCalculationSnapshot, Expense,
 )
 
 
@@ -186,18 +186,26 @@ def compute_worker_totals(worker):
     IMPROVEMENT over FastAPI: Uses ReceiptDistribution aggregates instead of
     re-computing from allocations per job. Single query for earned.
     """
-    # Earned = sum of all ReceiptDistribution.computed_amount for this worker
-    agg = ReceiptDistribution.objects.filter(
+    # Earned = receipt-chain distributions + manual payments (non-auto have no RD, so no double-count)
+    rd_agg = ReceiptDistribution.objects.filter(
         worker=worker
     ).aggregate(total=Sum('computed_amount'))
-    earned = Decimal(str(agg['total'] or 0))
+    earned_from_receipts = Decimal(str(rd_agg['total'] or 0))
 
-    # Paid = sum of all Payment.amount_paid where is_paid=True
-    agg = Payment.objects.filter(
+    manual_agg = Payment.objects.filter(
         worker=worker,
-        is_paid=True
-    ).aggregate(total=Sum('amount_paid'))
-    paid = Decimal(str(agg['total'] or 0))
+        is_auto_generated=False,
+    ).aggregate(total=Sum('amount'))
+    earned_from_manual = Decimal(str(manual_agg['total'] or 0))
+
+    earned = earned_from_receipts + earned_from_manual
+
+    # Paid = all payments actually marked as paid (auto + manual)
+    paid_agg = Payment.objects.filter(
+        worker=worker,
+        is_paid=True,
+    ).aggregate(total=Sum('amount'))
+    paid = Decimal(str(paid_agg['total'] or 0))
 
     due = earned - paid
 
@@ -244,7 +252,7 @@ def get_dashboard_totals(jobs_queryset=None):
     agg = Payment.objects.filter(
         job_id__in=job_ids,
         is_paid=True
-    ).aggregate(total=Sum('amount_paid'))
+    ).aggregate(total=Sum('amount'))
     total_paid = Decimal(str(agg['total'] or 0))
 
     # Total due: total from ReceiptDistribution for workers on these jobs minus paid
@@ -261,6 +269,38 @@ def get_dashboard_totals(jobs_queryset=None):
         'total_paid': quantize_decimal(total_paid),
         'total_due': quantize_decimal(total_due),
     }
+
+
+def recompute_expense_coverage(worker):
+    """Mark a worker's submitted expenses as paid based on cumulative cash actually received.
+
+    Uses only is_paid=True payments (real cash in hand, not just amounts owed).
+    Walks expenses oldest-first: once running total exceeds cash received, remaining
+    expenses are marked unpaid. Saves only rows whose flag actually changed.
+    """
+    if not worker.user_id:
+        return
+
+    cash_received = Payment.objects.filter(
+        worker=worker,
+        is_paid=True,
+    ).aggregate(t=Sum('amount'))['t'] or Decimal(0)
+
+    expenses = list(
+        Expense.objects.filter(created_by_id=worker.user_id).order_by('expense_date', 'id')
+    )
+
+    running = Decimal(0)
+    to_update = []
+    for expense in expenses:
+        running += expense.amount
+        should_be_paid = running <= cash_received
+        if expense.is_paid != should_be_paid:
+            expense.is_paid = should_be_paid
+            to_update.append(expense)
+
+    if to_update:
+        Expense.objects.bulk_update(to_update, ['is_paid'])
 
 
 def get_earnings_for_period(date_from=None, date_to=None, jobs_queryset=None):

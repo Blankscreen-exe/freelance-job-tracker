@@ -31,7 +31,8 @@ urlpatterns = [
     path('jobs/<int:pk>/unfinalize/', views.job_unfinalize, name='job_unfinalize'),
     path('jobs/<int:pk>/note/', views.job_note_save, name='job_note_save'),
 
-    # Receipts (nested under jobs)
+    # Receipts
+    path('receipts/', views.receipt_list, name='receipt_list'),
     path('jobs/<int:job_pk>/receipts/new/', views.receipt_create, name='receipt_create'),
     path('receipts/<int:pk>/edit/', views.receipt_edit, name='receipt_edit'),
     path('receipts/<int:pk>/delete/', views.receipt_delete, name='receipt_delete'),

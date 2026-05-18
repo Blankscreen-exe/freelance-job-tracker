@@ -1,9 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Expense Tracking{% endblock %}
-{% block page_title %}Expense Tracking{% endblock %}
+{% block page_title %}{% if is_personal %}My Expense Tracking{% else %}Agency Expense Tracking{% endif %}{% endblock %}
 
 {% block content %}
-<!-- Date Range Filter -->
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
@@ -22,28 +21,57 @@
     </div>
 </div>
 
-<!-- Summary Cards -->
+{% if is_personal %}
+<!-- Worker personal view -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card bg-success bg-opacity-10"><div class="card-body">
+            <small class="text-muted">My Earnings</small>
+            <h4 class="text-success">${{ my_earnings|floatformat:2 }}</h4>
+            <div class="text-muted small">From payment records</div>
+        </div></div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-danger bg-opacity-10"><div class="card-body">
+            <small class="text-muted">My Expenses</small>
+            <h4 class="text-danger">${{ my_expenses|floatformat:2 }}</h4>
+            <div class="text-muted small">Submitted by you</div>
+        </div></div>
+    </div>
+    <div class="col-md-4">
+        <div class="card {% if net >= 0 %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10"><div class="card-body">
+            <small class="text-muted">Net</small>
+            <h4 class="{% if net >= 0 %}text-success{% else %}text-danger{% endif %}">${{ net|floatformat:2 }}</h4>
+            <div class="text-muted small">Earnings minus your expenses</div>
+        </div></div>
+    </div>
+</div>
+
+{% else %}
+<!-- Admin / middleman agency-wide view -->
 <div class="row g-3 mb-4">
     <div class="col-md-4">
         <div class="card bg-success bg-opacity-10"><div class="card-body">
             <small class="text-muted">Total Earnings</small>
             <h4 class="text-success">${{ total_earnings|floatformat:2 }}</h4>
+            <div class="text-muted small">All client receipts</div>
         </div></div>
     </div>
     <div class="col-md-4">
         <div class="card bg-info bg-opacity-10"><div class="card-body">
             <small class="text-muted">Owner Earnings</small>
             <h4 class="text-info">${{ owner_earnings|floatformat:2 }}</h4>
+            <div class="text-muted small">After worker distributions</div>
         </div></div>
     </div>
     <div class="col-md-4">
         <div class="card bg-danger bg-opacity-10"><div class="card-body">
             <small class="text-muted">Total Expenses</small>
             <h4 class="text-danger">${{ total_expenses|floatformat:2 }}</h4>
+            <div class="text-muted small">All agency expenses</div>
         </div></div>
     </div>
 </div>
-
 <div class="row g-3 mb-4">
     <div class="col-md-6">
         <div class="card {% if profit >= 0 %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10"><div class="card-body">
@@ -58,16 +86,22 @@
         </div></div>
     </div>
 </div>
+{% endif %}
 
-<!-- Chart -->
 <div class="card mb-4">
-    <div class="card-header"><h6 class="mb-0">Daily Breakdown</h6></div>
+    <div class="card-header">
+        <h6 class="mb-0">Daily Breakdown
+            <span class="text-muted fw-normal small ms-2">
+                {% if is_personal %}your expenses vs your earnings{% else %}all expenses vs all client receipts{% endif %}
+            </span>
+        </h6>
+    </div>
     <div class="card-body">
         <canvas id="trackingChart" height="100"></canvas>
     </div>
 </div>
 
-<p class="text-muted">Period: {{ date_from|date:"M d, Y" }} — {{ date_to|date:"M d, Y" }}</p>
+<p class="text-muted small">Period: {{ date_from|date:"M d, Y" }} — {{ date_to|date:"M d, Y" }}</p>
 {% endblock %}
 
 {% block extra_js %}
@@ -79,14 +113,14 @@ new Chart(document.getElementById('trackingChart'), {
         labels: {{ chart_labels|safe }},
         datasets: [
             {
-                label: 'Earnings',
+                label: '{% if is_personal %}My Earnings{% else %}Earnings{% endif %}',
                 data: {{ chart_earnings|safe }},
                 backgroundColor: 'rgba(25, 135, 84, 0.6)',
                 borderColor: 'rgba(25, 135, 84, 1)',
                 borderWidth: 1,
             },
             {
-                label: 'Expenses',
+                label: '{% if is_personal %}My Expenses{% else %}Expenses{% endif %}',
                 data: {{ chart_expenses|safe }},
                 backgroundColor: 'rgba(220, 53, 69, 0.6)',
                 borderColor: 'rgba(220, 53, 69, 1)',

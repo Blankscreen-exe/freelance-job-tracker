@@ -31,7 +31,7 @@
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Amount <span class="text-danger">*</span></label>
                     <input type="number" name="amount_paid" step="0.01" class="form-control" required
-                           value="{{ payment.amount_paid|default:'' }}">
+                           value="{{ payment.amount|default:'' }}">
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Date <span class="text-danger">*</span></label>
@@ -44,11 +44,6 @@
                     <label class="form-label">Method</label>
                     <input type="text" name="method" class="form-control" placeholder="Bank transfer, PayPal, etc."
                            value="{{ payment.method|default:'' }}">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Reference</label>
-                    <input type="text" name="reference" class="form-control" placeholder="Transaction ID, etc."
-                           value="{{ payment.reference|default:'' }}">
                 </div>
             </div>
             <div class="mb-3">

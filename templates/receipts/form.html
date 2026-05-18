@@ -34,11 +34,6 @@
                                 <option value="manual" {% if receipt.source == 'manual' %}selected{% endif %}>Manual</option>
                             </select>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Transaction ID</label>
-                            <input type="text" name="upwork_transaction_id" class="form-control"
-                                   value="{{ receipt.upwork_transaction_id|default:'' }}">
-                        </div>
                         <div class="col-12">
                             <label class="form-label">Notes</label>
                             <textarea name="notes" class="form-control" rows="2">{{ receipt.notes|default:'' }}</textarea>
