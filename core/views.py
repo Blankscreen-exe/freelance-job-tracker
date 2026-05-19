@@ -1085,6 +1085,99 @@ def receipt_list(request):
 
 
 @login_required
+def receipt_new(request):
+    """Two-step receipt creation: step 1 pick a job, step 2 fill in the receipt."""
+    if not request.user.is_admin_user() and request.user.active_role not in ('admin', 'middleman'):
+        messages.error(request, "Access restricted.")
+        return redirect('dashboard')
+
+    jobs = get_visible_jobs(request.user).filter(is_finalized=False).order_by('-created_at')
+
+    if request.method == 'POST':
+        job = get_object_or_404(Job, pk=request.POST.get('job_pk'))
+        if job.is_finalized:
+            messages.error(request, "Cannot add receipts to a finalized job.")
+            return redirect('receipt_new')
+
+        allocations = job.allocations.select_related('worker').all()
+        receipt = Receipt(
+            job=job,
+            received_date=request.POST['received_date'],
+            amount_received=request.POST['amount_received'],
+            source=request.POST.get('source', 'milestone'),
+            notes=request.POST.get('notes', ''),
+        )
+        receipt.save()
+
+        use_custom = request.POST.get('use_custom') == 'on'
+        if use_custom:
+            alloc_data = []
+            idx = 0
+            while f'custom_worker_{idx}' in request.POST:
+                worker_id = request.POST.get(f'custom_worker_{idx}')
+                share_type = request.POST.get(f'custom_share_type_{idx}', 'percent')
+                share_value = request.POST.get(f'custom_share_value_{idx}', '0')
+                label = request.POST.get(f'custom_label_{idx}', '')
+                worker = Worker.objects.filter(pk=worker_id).first() if worker_id else None
+                alloc_data.append({
+                    'worker': worker,
+                    'label': label or (worker.name if worker else 'Owner'),
+                    'share_type': share_type,
+                    'share_value': share_value,
+                })
+                idx += 1
+        else:
+            selected_ids = request.POST.getlist('allocation_ids')
+            selected = allocations.filter(id__in=selected_ids) if selected_ids else allocations
+            alloc_data = [{
+                'worker': a.worker,
+                'label': a.label,
+                'share_type': a.share_type,
+                'share_value': str(a.share_value),
+            } for a in selected]
+
+        if alloc_data:
+            pf = get_receipt_deductions(job, receipt)
+            distributions = compute_receipt_distributions(receipt, alloc_data, pf)
+            for dist in distributions:
+                ReceiptDistribution.objects.create(
+                    receipt=receipt,
+                    worker=dist['worker'],
+                    label=dist['label'],
+                    share_type=dist['share_type'],
+                    share_value=dist['share_value'],
+                    computed_amount=dist['computed_amount'],
+                )
+
+        auto_payments = generate_payments_from_receipt(receipt)
+        if auto_payments:
+            messages.info(request, f"{len(auto_payments)} payment(s) auto-generated.")
+        messages.success(request, f"Receipt of ${receipt.amount_received} added.")
+        return redirect('job_detail', pk=job.pk)
+
+    # GET — step 1 (no job) or step 2 (job selected)
+    job_pk = request.GET.get('job')
+    selected_job = None
+    allocations = []
+    workers = []
+    if job_pk:
+        selected_job = get_object_or_404(Job, pk=job_pk)
+        if selected_job.is_finalized:
+            messages.error(request, f"{selected_job.job_code} is finalized and cannot receive new receipts.")
+            selected_job = None
+        else:
+            allocations = selected_job.allocations.select_related('worker').all()
+            workers = Worker.objects.filter(is_archived=False)
+
+    return render(request, 'receipts/new.html', {
+        'jobs': jobs,
+        'selected_job': selected_job,
+        'allocations': allocations,
+        'workers': workers,
+    })
+
+
+@login_required
 def receipt_create(request, job_pk):
     job = get_object_or_404(Job, pk=job_pk)
     if job.is_finalized:

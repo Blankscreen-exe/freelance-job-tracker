@@ -35,6 +35,7 @@ urlpatterns = [
 
     # Receipts
     path('receipts/', views.receipt_list, name='receipt_list'),
+    path('receipts/new/', views.receipt_new, name='receipt_new'),
     path('jobs/<int:job_pk>/receipts/new/', views.receipt_create, name='receipt_create'),
     path('receipts/<int:pk>/edit/', views.receipt_edit, name='receipt_edit'),
     path('receipts/<int:pk>/delete/', views.receipt_delete, name='receipt_delete'),
