@@ -446,37 +446,57 @@ def team_roster(request):
     role_filter = request.GET.get('role', '')
     search = request.GET.get('q', '').strip()
 
+    users_qs = User.objects.filter(is_active=True).prefetch_related(
+        'roles', 'worker_profile', 'middleman_profile',
+    )
+
     roster = []
+    for u in users_qs:
+        worker = getattr(u, 'worker_profile', None)
+        middleman = getattr(u, 'middleman_profile', None)
 
-    if role_filter in ('', 'worker'):
-        workers = Worker.objects.filter(is_archived=False)
-        if search:
-            workers = workers.filter(name__icontains=search)
-        for w in workers:
-            roster.append({
-                'role': 'worker',
-                'code': w.worker_code,
-                'name': w.name,
-                'contact': w.contact or '-',
-                'pk': w.pk,
-                'detail_url': 'worker_detail',
-                'edit_url': 'worker_edit',
-            })
+        # Skip both profiles archived (treat as inactive from roster perspective)
+        worker_active = worker and not worker.is_archived
+        middleman_active = middleman and not middleman.is_archived
 
-    if role_filter in ('', 'middleman'):
-        middlemen = Middleman.objects.filter(is_archived=False)
-        if search:
-            middlemen = middlemen.filter(name__icontains=search)
-        for m in middlemen:
-            roster.append({
-                'role': 'middleman',
-                'code': m.middleman_code,
-                'name': m.name,
-                'contact': m.email or m.phone or '-',
-                'pk': m.pk,
-                'detail_url': 'middleman_detail',
-                'edit_url': 'middleman_edit',
-            })
+        roles = u.get_roles()
+        if u.is_superuser and 'admin' not in roles:
+            roles = ['admin'] + roles
+
+        if role_filter == 'worker' and not worker_active:
+            continue
+        if role_filter == 'middleman' and not middleman_active:
+            continue
+        if role_filter == 'admin' and not u.is_admin_user():
+            continue
+
+        name = (worker.name if worker_active else None) \
+            or (middleman.name if middleman_active else None) \
+            or u.username
+
+        if search and search.lower() not in name.lower():
+            continue
+
+        contact = (worker.contact if worker_active and worker.contact else None) \
+            or (middleman.email or middleman.phone if middleman_active else None) \
+            or '-'
+
+        codes = []
+        if worker_active:
+            codes.append(('worker', worker.worker_code, worker.pk))
+        if middleman_active:
+            codes.append(('middleman', middleman.middleman_code, middleman.pk))
+
+        roster.append({
+            'user_id': u.pk,
+            'username': u.username,
+            'name': name,
+            'roles': roles,
+            'codes': codes,
+            'contact': contact,
+            'worker': worker if worker_active else None,
+            'middleman': middleman if middleman_active else None,
+        })
 
     roster.sort(key=lambda x: x['name'].lower())
 
