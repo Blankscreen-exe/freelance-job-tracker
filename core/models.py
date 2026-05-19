@@ -1,7 +1,10 @@
 import json
+import secrets
 from decimal import Decimal
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.utils import timezone
+from datetime import timedelta
 from core.utils.encryption import EncryptedTextField
 
 
@@ -571,3 +574,32 @@ class SmtpSettings(models.Model):
         if self.from_name and self.from_email:
             return f'{self.from_name} <{self.from_email}>'
         return self.from_email or self.username
+
+
+# ──────────────────────────────────────────────
+# Magic Link Authentication
+# ──────────────────────────────────────────────
+
+class MagicLinkToken(models.Model):
+    EXPIRY_MINUTES = 15
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='magic_tokens')
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = 'Magic Link Token'
+
+    def __str__(self):
+        return f'MagicLink for {self.user} (used={self.is_used})'
+
+    @classmethod
+    def create_for_user(cls, user):
+        token = secrets.token_urlsafe(32)
+        expires_at = timezone.now() + timedelta(minutes=cls.EXPIRY_MINUTES)
+        return cls.objects.create(user=user, token=token, expires_at=expires_at)
+
+    def is_valid(self):
+        return not self.is_used and self.expires_at > timezone.now()

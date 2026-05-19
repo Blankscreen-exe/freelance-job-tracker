@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - {{ APP_NAME }}</title>
+    <title>Magic Link Login - {{ APP_NAME }}</title>
     {% if BRANDING and BRANDING.favicon %}
     <link rel="icon" href="{{ BRANDING.favicon.url }}">
     <link rel="shortcut icon" href="{{ BRANDING.favicon.url }}">
@@ -38,27 +38,28 @@
                 {% endif %}
             </div>
 
-            {% if form.errors %}
-            <div class="alert alert-danger">Invalid username or password.</div>
-            {% endif %}
+            <h6 class="text-center text-muted mb-3">Email me a login link</h6>
+
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>
+            {% endfor %}
 
             <form method="post">
                 {% csrf_token %}
                 <div class="mb-3">
-                    <label for="id_username" class="form-label">Username</label>
-                    <input type="text" name="username" id="id_username" class="form-control" autofocus required>
+                    <label for="id_email" class="form-label">Email address</label>
+                    <input type="email" name="email" id="id_email" class="form-control" autofocus required
+                           placeholder="you@example.com">
                 </div>
-                <div class="mb-3">
-                    <label for="id_password" class="form-label">Password</label>
-                    <input type="password" name="password" id="id_password" class="form-control" required>
-                </div>
-                <button type="submit" class="btn btn-primary w-100">Login</button>
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-envelope me-1"></i> Send Login Link
+                </button>
             </form>
 
             <hr class="my-3">
             <div class="text-center">
-                <a href="{% url 'magic_link_request' %}" class="text-muted small">
-                    <i class="bi bi-magic me-1"></i> Email me a login link instead
+                <a href="{% url 'login' %}" class="text-muted small">
+                    <i class="bi bi-arrow-left me-1"></i> Back to password login
                 </a>
             </div>
         </div>

@@ -56,6 +56,43 @@ def send_email(to, subject, body='', html_body=None):
     msg.send()
 
 
+def send_magic_link(to, magic_url, app_name='Job Tracker', expiry_minutes=15):
+    """Send a magic login link email."""
+    subject = f"Your {app_name} login link"
+
+    plain = (
+        f"Hi,\n\n"
+        f"Click the link below to log in to {app_name}. "
+        f"This link expires in {expiry_minutes} minutes and can only be used once.\n\n"
+        f"  {magic_url}\n\n"
+        f"If you did not request this, you can safely ignore this email.\n"
+    )
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:Arial,sans-serif;color:#333;max-width:520px;margin:0 auto;padding:24px;">
+  <h2 style="color:#0d6efd;margin-bottom:4px;">Log in to {app_name}</h2>
+  <p>Click the button below to sign in. This link expires in <strong>{expiry_minutes} minutes</strong> and can only be used once.</p>
+  <p style="text-align:center;margin:32px 0;">
+    <a href="{magic_url}"
+       style="background:#0d6efd;color:#fff;text-decoration:none;padding:12px 28px;border-radius:6px;font-size:16px;display:inline-block;">
+      Sign In
+    </a>
+  </p>
+  <p style="font-size:13px;color:#6c757d;">
+    Or copy this link into your browser:<br>
+    <a href="{magic_url}" style="color:#0d6efd;word-break:break-all;">{magic_url}</a>
+  </p>
+  <p style="margin-top:20px;font-size:13px;color:#6c757d;">
+    If you did not request this, you can safely ignore this email.<br>
+    This message was sent automatically — do not reply.
+  </p>
+</body>
+</html>"""
+
+    send_email(to=to, subject=subject, body=plain, html_body=html)
+
+
 def send_invitation(to, username, password, login_url, app_name='Job Tracker'):
     """Send a welcome / credential email to a newly created user."""
     subject = f"Your {app_name} account is ready"

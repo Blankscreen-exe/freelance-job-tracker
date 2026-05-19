@@ -6,6 +6,8 @@ urlpatterns = [
     path('', views.dashboard, name='dashboard'),
 
     # Auth / Profile
+    path('auth/magic-link/', views.magic_link_request, name='magic_link_request'),
+    path('auth/magic-link/<str:token>/', views.magic_link_verify, name='magic_link_verify'),
     path('auth/switch-role/', views.switch_role, name='switch_role'),
     path('profile/', views.profile, name='profile'),
     path('profile/change-password/', views.change_password, name='change_password'),

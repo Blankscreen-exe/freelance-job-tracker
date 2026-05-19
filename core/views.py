@@ -12,7 +12,7 @@ from .models import (
     Middleman, Worker, Payment, Receipt,
     JobAllocation, SettingsVersion, ReceiptDistribution,
     JobCalculationSnapshot, User, UserRole, JobNote,
-    Expense, Vendor, ExpenseCategory,
+    Expense, Vendor, ExpenseCategory, MagicLinkToken,
 )
 from .services.calculations import (
     get_job_totals, compute_allocations, compute_worker_totals,
@@ -21,7 +21,7 @@ from .services.calculations import (
 )
 from .services.payment_generator import generate_payments_from_receipt
 from .services.reports import get_pnl_data, get_ledger_entries, pnl_to_csv_rows, ledger_to_csv_rows
-from .services.email import send_invitation
+from .services.email import send_invitation, send_magic_link
 
 
 def _send_invitation_quietly(request, email, username, password):
@@ -35,6 +35,55 @@ def _send_invitation_quietly(request, email, username, password):
         messages.info(request, f"Invitation email sent to {email}.")
     except Exception as exc:
         messages.warning(request, f"User created, but invitation email could not be sent: {exc}")
+
+
+# ──────────────────────────────────────────────
+# Magic Link Authentication
+# ──────────────────────────────────────────────
+
+def magic_link_request(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip()
+        try:
+            user = User.objects.get(email=email, is_active=True)
+            token = MagicLinkToken.create_for_user(user)
+            magic_url = request.build_absolute_uri(f'/auth/magic-link/{token.token}/')
+            try:
+                from django.conf import settings as django_settings
+                app_name = getattr(django_settings, 'APP_NAME', 'Job Tracker')
+                send_magic_link(to=email, magic_url=magic_url, app_name=app_name,
+                                expiry_minutes=MagicLinkToken.EXPIRY_MINUTES)
+            except Exception as exc:
+                messages.error(request, f"Could not send magic link email: {exc}")
+                return render(request, 'registration/magic_link_request.html')
+        except User.DoesNotExist:
+            pass  # Don't reveal whether the email exists
+        messages.success(request, "If that email is registered, you'll receive a login link shortly.")
+        return redirect('magic_link_request')
+    return render(request, 'registration/magic_link_request.html')
+
+
+def magic_link_verify(request, token):
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+    try:
+        ml_token = MagicLinkToken.objects.select_related('user').get(token=token)
+    except MagicLinkToken.DoesNotExist:
+        messages.error(request, "Invalid login link.")
+        return redirect('login')
+
+    if not ml_token.is_valid():
+        messages.error(request, "This login link has expired or already been used.")
+        return redirect('login')
+
+    ml_token.is_used = True
+    ml_token.save(update_fields=['is_used'])
+
+    from django.contrib.auth import login
+    login(request, ml_token.user, backend='django.contrib.auth.backends.ModelBackend')
+    return redirect('dashboard')
 
 
 # ──────────────────────────────────────────────
@@ -1840,17 +1889,31 @@ def expense_tracking(request):
     is_worker = not request.user.is_admin_user() and request.user.active_role == 'worker'
 
     chart_labels = []
-    chart_expenses = []
+    chart_covered = []
+    chart_uncovered = []
     chart_earnings = []
 
     if is_worker:
-        # Personal view: expenses the worker submitted + their ReceiptDistribution earnings
         worker_profile = getattr(request.user, 'worker_profile', None)
 
         my_expenses = Expense.objects.filter(
             created_by=request.user,
             expense_date__gte=date_from, expense_date__lte=date_to,
         ).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
+
+        covered_expenses = Expense.objects.filter(
+            created_by=request.user,
+            expense_date__gte=date_from, expense_date__lte=date_to,
+            is_paid=True,
+        ).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
+
+        uncovered_expenses = Expense.objects.filter(
+            created_by=request.user,
+            expense_date__gte=date_from, expense_date__lte=date_to,
+            is_paid=False,
+        ).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
+
+        coverage_pct = (covered_expenses / my_expenses * 100) if my_expenses > 0 else Decimal(0)
 
         my_earnings = Payment.objects.filter(
             worker=worker_profile,
@@ -1860,16 +1923,30 @@ def expense_tracking(request):
 
         net = my_earnings - my_expenses
 
+        cat_qs = (
+            Expense.objects
+            .filter(created_by=request.user, expense_date__gte=date_from, expense_date__lte=date_to)
+            .values('category__name')
+            .annotate(total=Sum('amount'))
+            .order_by('-total')
+        )
+        category_labels = [row['category__name'] or 'Uncategorized' for row in cat_qs]
+        category_data = [float(row['total']) for row in cat_qs]
+
         current = date_from
         while current <= date_to:
             chart_labels.append(current.strftime('%b %d'))
-            day_exp = Expense.objects.filter(
-                created_by=request.user, expense_date=current,
+            day_cov = Expense.objects.filter(
+                created_by=request.user, expense_date=current, is_paid=True,
+            ).aggregate(s=Sum('amount'))['s'] or 0
+            day_uncov = Expense.objects.filter(
+                created_by=request.user, expense_date=current, is_paid=False,
             ).aggregate(s=Sum('amount'))['s'] or 0
             day_earn = Payment.objects.filter(
                 worker=worker_profile, paid_date=current,
             ).aggregate(s=Sum('amount'))['s'] or 0 if worker_profile else 0
-            chart_expenses.append(float(day_exp))
+            chart_covered.append(float(day_cov))
+            chart_uncovered.append(float(day_uncov))
             chart_earnings.append(float(day_earn))
             current += td(days=1)
 
@@ -1879,12 +1956,23 @@ def expense_tracking(request):
             'my_expenses': my_expenses,
             'my_earnings': my_earnings,
             'net': net,
+            'covered_expenses': covered_expenses,
+            'uncovered_expenses': uncovered_expenses,
+            'coverage_pct': coverage_pct,
+            'category_labels': json.dumps(category_labels),
+            'category_data': json.dumps(category_data),
             'chart_labels': json.dumps(chart_labels),
-            'chart_expenses': json.dumps(chart_expenses),
+            'chart_covered': json.dumps(chart_covered),
+            'chart_uncovered': json.dumps(chart_uncovered),
             'chart_earnings': json.dumps(chart_earnings),
         })
 
     # Admin / middleman: agency-wide view
+    global_income = Receipt.objects.aggregate(s=Sum('amount_received'))['s'] or Decimal('0.00')
+    global_expenses = Expense.objects.aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
+    global_owner_earnings = get_owner_earnings_for_period()
+    global_profit = global_owner_earnings - global_expenses
+
     total_expenses = Expense.objects.filter(
         expense_date__gte=date_from, expense_date__lte=date_to,
     ).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
@@ -1892,25 +1980,60 @@ def expense_tracking(request):
         received_date__gte=date_from, received_date__lte=date_to,
     ).aggregate(s=Sum('amount_received'))['s'] or Decimal('0.00')
     owner_earnings = get_owner_earnings_for_period(date_from, date_to)
+    # worker payouts in period = total receipts minus owner's share
+    worker_payouts = total_earnings - owner_earnings
     profit = owner_earnings - total_expenses
     margin = (profit / owner_earnings * 100) if owner_earnings > 0 else Decimal(0)
+
+    covered_expenses = Expense.objects.filter(
+        expense_date__gte=date_from, expense_date__lte=date_to, is_paid=True,
+    ).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
+    uncovered_expenses = Expense.objects.filter(
+        expense_date__gte=date_from, expense_date__lte=date_to, is_paid=False,
+    ).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
+    coverage_pct = (covered_expenses / total_expenses * 100) if total_expenses > 0 else Decimal(0)
+
+    cat_qs = (
+        Expense.objects
+        .filter(expense_date__gte=date_from, expense_date__lte=date_to)
+        .values('category__name')
+        .annotate(total=Sum('amount'))
+        .order_by('-total')
+    )
+    category_labels = [row['category__name'] or 'Uncategorized' for row in cat_qs]
+    category_data = [float(row['total']) for row in cat_qs]
 
     current = date_from
     while current <= date_to:
         chart_labels.append(current.strftime('%b %d'))
-        day_exp = Expense.objects.filter(expense_date=current).aggregate(s=Sum('amount'))['s'] or 0
+        day_cov = Expense.objects.filter(expense_date=current, is_paid=True).aggregate(s=Sum('amount'))['s'] or 0
+        day_uncov = Expense.objects.filter(expense_date=current, is_paid=False).aggregate(s=Sum('amount'))['s'] or 0
         day_earn = Receipt.objects.filter(received_date=current).aggregate(s=Sum('amount_received'))['s'] or 0
-        chart_expenses.append(float(day_exp))
+        chart_covered.append(float(day_cov))
+        chart_uncovered.append(float(day_uncov))
         chart_earnings.append(float(day_earn))
         current += td(days=1)
 
     return render(request, 'expenses/tracking.html', {
         'date_from': date_from, 'date_to': date_to,
         'is_personal': False,
-        'total_expenses': total_expenses, 'total_earnings': total_earnings,
-        'owner_earnings': owner_earnings, 'profit': profit, 'margin': margin,
+        'global_income': global_income,
+        'global_expenses': global_expenses,
+        'global_profit': global_profit,
+        'total_expenses': total_expenses,
+        'total_earnings': total_earnings,
+        'owner_earnings': owner_earnings,
+        'worker_payouts': worker_payouts,
+        'profit': profit,
+        'margin': margin,
+        'covered_expenses': covered_expenses,
+        'uncovered_expenses': uncovered_expenses,
+        'coverage_pct': coverage_pct,
+        'category_labels': json.dumps(category_labels),
+        'category_data': json.dumps(category_data),
         'chart_labels': json.dumps(chart_labels),
-        'chart_expenses': json.dumps(chart_expenses),
+        'chart_covered': json.dumps(chart_covered),
+        'chart_uncovered': json.dumps(chart_uncovered),
         'chart_earnings': json.dumps(chart_earnings),
     })
 

@@ -3,6 +3,42 @@
 {% block page_title %}{% if is_personal %}My Expense Tracking{% else %}Agency Expense Tracking{% endif %}{% endblock %}
 
 {% block content %}
+
+{% if not is_personal %}
+<!-- All-time global totals (admin / middleman only) -->
+<p class="text-muted small text-uppercase fw-semibold mb-2">All-Time Totals</p>
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body py-3">
+                <small class="text-muted">Global Income</small>
+                <h4 class="text-success mb-0">${{ global_income|floatformat:2 }}</h4>
+                <div class="text-muted small">All client receipts ever recorded</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body py-3">
+                <small class="text-muted">Global Expenses</small>
+                <h4 class="text-danger mb-0">${{ global_expenses|floatformat:2 }}</h4>
+                <div class="text-muted small">All agency expenses ever recorded</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card {% if global_profit >= 0 %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10">
+            <div class="card-body py-3">
+                <small class="text-muted">Global Net Profit</small>
+                <h4 class="{% if global_profit >= 0 %}text-success{% else %}text-danger{% endif %} mb-0">${{ global_profit|floatformat:2 }}</h4>
+                <div class="text-muted small">Owner earnings minus all expenses</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Date range filter -->
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
@@ -22,83 +58,167 @@
 </div>
 
 {% if is_personal %}
-<!-- Worker personal view -->
+<!-- Worker: period KPIs -->
 <div class="row g-3 mb-4">
     <div class="col-md-4">
-        <div class="card bg-success bg-opacity-10"><div class="card-body">
-            <small class="text-muted">My Earnings</small>
-            <h4 class="text-success">${{ my_earnings|floatformat:2 }}</h4>
-            <div class="text-muted small">From payment records</div>
-        </div></div>
+        <div class="card bg-success bg-opacity-10">
+            <div class="card-body">
+                <small class="text-muted">My Earnings</small>
+                <h4 class="text-success">${{ my_earnings|floatformat:2 }}</h4>
+                <div class="text-muted small">From payment records</div>
+            </div>
+        </div>
     </div>
     <div class="col-md-4">
-        <div class="card bg-danger bg-opacity-10"><div class="card-body">
-            <small class="text-muted">My Expenses</small>
-            <h4 class="text-danger">${{ my_expenses|floatformat:2 }}</h4>
-            <div class="text-muted small">Submitted by you</div>
-        </div></div>
+        <div class="card bg-danger bg-opacity-10">
+            <div class="card-body">
+                <small class="text-muted">My Expenses</small>
+                <h4 class="text-danger">${{ my_expenses|floatformat:2 }}</h4>
+                <div class="text-muted small">Submitted by you</div>
+            </div>
+        </div>
     </div>
     <div class="col-md-4">
-        <div class="card {% if net >= 0 %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10"><div class="card-body">
-            <small class="text-muted">Net</small>
-            <h4 class="{% if net >= 0 %}text-success{% else %}text-danger{% endif %}">${{ net|floatformat:2 }}</h4>
-            <div class="text-muted small">Earnings minus your expenses</div>
-        </div></div>
+        <div class="card {% if net >= 0 %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10">
+            <div class="card-body">
+                <small class="text-muted">Net</small>
+                <h4 class="{% if net >= 0 %}text-success{% else %}text-danger{% endif %}">${{ net|floatformat:2 }}</h4>
+                <div class="text-muted small">Earnings minus your expenses</div>
+            </div>
+        </div>
     </div>
 </div>
 
 {% else %}
-<!-- Admin / middleman agency-wide view -->
+<!-- Admin: period KPIs -->
 <div class="row g-3 mb-4">
     <div class="col-md-4">
-        <div class="card bg-success bg-opacity-10"><div class="card-body">
-            <small class="text-muted">Total Earnings</small>
-            <h4 class="text-success">${{ total_earnings|floatformat:2 }}</h4>
-            <div class="text-muted small">All client receipts</div>
-        </div></div>
+        <div class="card bg-success bg-opacity-10">
+            <div class="card-body">
+                <small class="text-muted">Total Earnings</small>
+                <h4 class="text-success">${{ total_earnings|floatformat:2 }}</h4>
+                <div class="text-muted small">All client receipts in period</div>
+            </div>
+        </div>
     </div>
     <div class="col-md-4">
-        <div class="card bg-info bg-opacity-10"><div class="card-body">
-            <small class="text-muted">Owner Earnings</small>
-            <h4 class="text-info">${{ owner_earnings|floatformat:2 }}</h4>
-            <div class="text-muted small">After worker distributions</div>
-        </div></div>
+        <div class="card bg-info bg-opacity-10">
+            <div class="card-body">
+                <small class="text-muted">Owner Earnings</small>
+                <h4 class="text-info">${{ owner_earnings|floatformat:2 }}</h4>
+                <div class="text-muted small">After worker distributions</div>
+            </div>
+        </div>
     </div>
     <div class="col-md-4">
-        <div class="card bg-danger bg-opacity-10"><div class="card-body">
-            <small class="text-muted">Total Expenses</small>
-            <h4 class="text-danger">${{ total_expenses|floatformat:2 }}</h4>
-            <div class="text-muted small">All agency expenses</div>
-        </div></div>
+        <div class="card bg-danger bg-opacity-10">
+            <div class="card-body">
+                <small class="text-muted">Total Expenses</small>
+                <h4 class="text-danger">${{ total_expenses|floatformat:2 }}</h4>
+                <div class="text-muted small">All agency expenses in period</div>
+            </div>
+        </div>
     </div>
 </div>
-<div class="row g-3 mb-4">
-    <div class="col-md-6">
-        <div class="card {% if profit >= 0 %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10"><div class="card-body">
-            <small class="text-muted">Net Profit</small>
-            <h4 class="{% if profit >= 0 %}text-success{% else %}text-danger{% endif %}">${{ profit|floatformat:2 }}</h4>
-        </div></div>
-    </div>
-    <div class="col-md-6">
-        <div class="card"><div class="card-body">
-            <small class="text-muted">Profit Margin</small>
-            <h4>{{ margin|floatformat:1 }}%</h4>
-        </div></div>
+
+<!-- Admin: explicit profit formula -->
+<div class="card mb-4">
+    <div class="card-body">
+        <small class="text-muted fw-semibold d-block mb-3">Net Profit Calculation</small>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <div class="text-center px-2">
+                <div class="text-muted small">Total Receipts</div>
+                <div class="fs-5 text-success fw-semibold">${{ total_earnings|floatformat:2 }}</div>
+            </div>
+            <div class="fs-4 text-muted fw-light">−</div>
+            <div class="text-center px-2">
+                <div class="text-muted small">Worker Payouts</div>
+                <div class="fs-5 fw-semibold">${{ worker_payouts|floatformat:2 }}</div>
+            </div>
+            <div class="fs-4 text-muted fw-light">−</div>
+            <div class="text-center px-2">
+                <div class="text-muted small">Agency Expenses</div>
+                <div class="fs-5 text-danger fw-semibold">${{ total_expenses|floatformat:2 }}</div>
+            </div>
+            <div class="fs-4 text-muted fw-light">=</div>
+            <div class="text-center px-2 border-start ps-4">
+                <div class="text-muted small">Net Profit</div>
+                <div class="fs-4 fw-bold {% if profit >= 0 %}text-success{% else %}text-danger{% endif %}">${{ profit|floatformat:2 }}</div>
+            </div>
+            <div class="ms-auto text-center px-2">
+                <div class="text-muted small">Margin</div>
+                <div class="fs-5 fw-semibold">{{ margin|floatformat:1 }}%</div>
+            </div>
+        </div>
     </div>
 </div>
 {% endif %}
 
-<div class="card mb-4">
-    <div class="card-header">
-        <h6 class="mb-0">Daily Breakdown
-            <span class="text-muted fw-normal small ms-2">
-                {% if is_personal %}your expenses vs your earnings{% else %}all expenses vs all client receipts{% endif %}
-            </span>
-        </h6>
+<!-- Expense coverage breakdown (both views) -->
+<div class="row g-3 mb-2">
+    <div class="col-md-5">
+        <div class="card bg-success bg-opacity-10">
+            <div class="card-body py-3">
+                <small class="text-muted">Covered by Earnings</small>
+                <h4 class="text-success mb-1">${{ covered_expenses|floatformat:2 }}</h4>
+                <div class="text-muted small">Paid from actual received cash</div>
+            </div>
+        </div>
     </div>
-    <div class="card-body">
-        <canvas id="trackingChart" height="100"></canvas>
+    <div class="col-md-5">
+        <div class="card bg-warning bg-opacity-10">
+            <div class="card-body py-3">
+                <small class="text-muted">Out of Pocket</small>
+                <h4 class="text-warning mb-1">${{ uncovered_expenses|floatformat:2 }}</h4>
+                <div class="text-muted small">Paid from external / unrecorded funds</div>
+            </div>
+        </div>
     </div>
+    <div class="col-md-2 d-flex align-items-center justify-content-center">
+        <div class="text-center">
+            <div class="text-muted small mb-1">Coverage</div>
+            <div class="fs-3 fw-bold {% if coverage_pct >= 80 %}text-success{% elif coverage_pct >= 50 %}text-warning{% else %}text-danger{% endif %}">{{ coverage_pct|floatformat:0 }}%</div>
+        </div>
+    </div>
+</div>
+<div class="mb-4">
+    <div class="progress" style="height: 8px;">
+        <div class="progress-bar bg-success" role="progressbar" style="width: {{ coverage_pct }}%;"></div>
+    </div>
+    <div class="d-flex justify-content-between text-muted small mt-1">
+        <span>Covered by earnings</span>
+        <span>Out of pocket</span>
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-{% if category_labels %}8{% else %}12{% endif %}">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0">Daily Breakdown
+                    <span class="text-muted fw-normal small ms-2">
+                        {% if is_personal %}your expenses vs your earnings{% else %}all expenses vs all client receipts{% endif %}
+                    </span>
+                </h6>
+            </div>
+            <div class="card-body">
+                <canvas id="trackingChart" height="{% if category_labels %}160{% else %}100{% endif %}"></canvas>
+            </div>
+        </div>
+    </div>
+    {% if category_labels %}
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0">Expenses by Category</h6>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <p class="text-muted small">Period: {{ date_from|date:"M d, Y" }} — {{ date_to|date:"M d, Y" }}</p>
@@ -118,19 +238,30 @@ new Chart(document.getElementById('trackingChart'), {
                 backgroundColor: 'rgba(25, 135, 84, 0.6)',
                 borderColor: 'rgba(25, 135, 84, 1)',
                 borderWidth: 1,
+                stack: 'income',
             },
             {
-                label: '{% if is_personal %}My Expenses{% else %}Expenses{% endif %}',
-                data: {{ chart_expenses|safe }},
-                backgroundColor: 'rgba(220, 53, 69, 0.6)',
-                borderColor: 'rgba(220, 53, 69, 1)',
+                label: 'Covered Expenses',
+                data: {{ chart_covered|safe }},
+                backgroundColor: 'rgba(13, 110, 253, 0.5)',
+                borderColor: 'rgba(13, 110, 253, 0.8)',
                 borderWidth: 1,
+                stack: 'expense',
+            },
+            {
+                label: 'Uncovered Expenses',
+                data: {{ chart_uncovered|safe }},
+                backgroundColor: 'rgba(255, 153, 0, 0.7)',
+                borderColor: 'rgba(255, 153, 0, 1)',
+                borderWidth: 1,
+                stack: 'expense',
             },
         ]
     },
     options: {
         responsive: true,
         scales: {
+            x: { stacked: true },
             y: { beginAtZero: true, ticks: { callback: v => '$' + v } }
         },
         plugins: {
@@ -138,5 +269,34 @@ new Chart(document.getElementById('trackingChart'), {
         }
     }
 });
+
+{% if category_labels %}
+new Chart(document.getElementById('categoryChart'), {
+    type: 'doughnut',
+    data: {
+        labels: {{ category_labels|safe }},
+        datasets: [{
+            data: {{ category_data|safe }},
+            backgroundColor: [
+                'rgba(220, 53, 69, 0.75)',
+                'rgba(255, 153, 0, 0.75)',
+                'rgba(13, 110, 253, 0.75)',
+                'rgba(25, 135, 84, 0.75)',
+                'rgba(108, 117, 125, 0.75)',
+                'rgba(13, 202, 240, 0.75)',
+                'rgba(111, 66, 193, 0.75)',
+                'rgba(253, 126, 20, 0.75)',
+            ],
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { position: 'right', labels: { boxWidth: 12, font: { size: 12 } } },
+            tooltip: { callbacks: { label: ctx => ctx.label + ': $' + ctx.raw.toFixed(2) } }
+        }
+    }
+});
+{% endif %}
 </script>
 {% endblock %}
